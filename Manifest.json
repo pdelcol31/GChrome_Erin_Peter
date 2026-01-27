@@ -15,7 +15,9 @@
       "128": "smiley_face128.jpg"
     }
   },
-  "content_scripts": [{"matches": ["https://chatgpt.com/*"]}]
+  "content_scripts": [{"matches": ["https://chatgpt.com/*"],
+    "css" : ["main.css"]
+  }]
 }
   
   
