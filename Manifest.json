@@ -1,1 +1,21 @@
-
+{
+  "manifest_version": 2,
+  "name": "Test",
+  "description": "".
+  "version": "",
+  "icon": {
+    "16": "",
+    "48": "",
+    "128": ""
+  }
+  "page_action": {
+    "default_icon": {
+      "16": "",
+      "48": "",
+      "128": ""
+    }
+  },
+  "content_scripts": [{"matches": ["https://chatgpt.com/*"]}]
+}
+  
+  
