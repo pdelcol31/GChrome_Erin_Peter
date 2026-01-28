@@ -8,15 +8,10 @@
     "48": "smiley_face48.jpg",
     "128": "smiley_face128.jpg"
   },
-  "page_action": {
-    "default_icon": {
-      "16": "smiley_face16.jpg",
-      "48": "smiley_face48.jpg",
-      "128": "smiley_face128.jpg"
-    }
+  "action": {
+    "default_popup": "popup.html"
   },
-  "content_scripts": [{"matches": ["https://chatgpt.com/*"],
-    "css" : ["main.css"]
+  "content_scripts": [{"matches": ["https://chatgpt.com/*"]
   }]
 }
   
