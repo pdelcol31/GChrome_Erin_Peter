@@ -1,3 +1,12 @@
-html body {
-  background: url("file:///Users/peterdelcol/Desktop/Google%20Chrome/smiley_face48.jpg")
-}
+<html>
+ <head>
+   <title>Water Popup</title>
+ </head>
+ <body>
+     <img src="./carbon.png" id="carbon">
+     <button id="CarbonUsage" >Carbon Emmission</button>
+     <img src="./water.png" id="water">
+     <button id="WaterUsage">Water Usage</button>
+   <script src="popup.js"></script>
+ </body>
+</html>
