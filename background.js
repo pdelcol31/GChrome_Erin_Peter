@@ -12,3 +12,4 @@ chrome.tabs.getSelected(null, function(tab) {
      }, function() { console.log('done'); });
 
 });
+#https://stackoverflow.com/questions/7641099/chrome-extension-grab-dom-content-for-parsing
