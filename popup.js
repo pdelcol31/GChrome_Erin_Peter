@@ -54,15 +54,15 @@ getModel.addEventListener("click", async () => {
 
 function scrapeModelResponse(){
 
-    alert("check 0")
+    alert("check 0");
     
     const response = document.queryselector(".whitespace-pre-wrap");
 
-    alert("check 1")
+    alert("check 1");
 
     const contents = response.innerHTML;
 
-    alert("check 2")
+    alert("check 2");
 
     chrome.runtime.sendMessage({contents});
 }
