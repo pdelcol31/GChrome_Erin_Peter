@@ -1,3 +1,6 @@
+import { getEncoding, encodingForModel } from "js-tiktoken";
+e = 2.71828;
+batch = 8;
 let getModel = document.getElementById('getModel');
 
 let list = document.getElementById('response');
@@ -11,9 +14,13 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse)=> {
     //get responses
     let responses = request.contents;
 
-    num_tokens = num_tokens_from_string(responses, "gpt-4o-mini"); // will need to pull model somehow
+    const enc = getEncoding("gpt2");
 
-    alert(num_tokens);
+    const tokens = enc.encode(responses);
+
+    alert(tokens);
+
+    //carbonEmission = carbon_Calculator()
 
     //display responses in popup
     if(responses == null || responses.length == 0){
@@ -28,6 +35,24 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse)=> {
         list.appendChild(li);
     }
 });
+/*
+function carbon_Calculator(parameters, tokens){
+    alpha = 1.17 * 10^-6;
+    lambda = -1.12 * 10^-2;
+    beta = 4.05 * 10^-5;
+    powerConsumption = 1.2; // Kw
+    latency = 1 // NEED TO UPDATE just a Placeholder
+
+    //
+    E_GPU = tokens * alpha * e^(beta * batch)* parameters + lambda;
+
+    //
+    E_Server_per_GPU = latency * powerConsumption * (GPU/NumGPU) * (1/batch);
+
+    //
+
+    return;
+}*/
 
 getModel.addEventListener("click", async () => {
     let [tab] = await chrome.tabs.query({active:
