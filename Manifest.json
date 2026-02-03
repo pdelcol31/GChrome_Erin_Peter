@@ -1,6 +1,6 @@
 {
   "name": "Chat chrome extension",
-  "description": "scrape ChatGPT for inputs",
+  "description": "Tokenize ChatGPT for inputs",
   "version": "1.0",
   "manifest_version": 3,
   "action" : {
