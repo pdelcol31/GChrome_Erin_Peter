@@ -1,4 +1,3 @@
-import "tiktoken";
 let getModel = document.getElementById('getModel');
 
 let list = document.getElementById('response');
