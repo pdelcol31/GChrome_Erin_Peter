@@ -56,7 +56,7 @@ function scrapeModelResponse(){
 
     alert("check 0")
     
-    const response = document.queryselector("thread");
+    const response = document.queryselector(".whitespace-pre-wrap");
 
     alert("check 1")
 
