@@ -1,4 +1,4 @@
-//import { getEncoding, encodingForModel } from "js-tiktoken";
+import { getEncoding, encodingForModel } from "./node_modules/js-tiktoken";
 e = 2.71828;
 batch = 8;
 let getModel = document.getElementById('getModel');
@@ -14,11 +14,15 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse)=> {
     //get responses
     let responses = request.contents;
 
-    //const enc = getEncoding("gpt2");
+    alert("4");
 
-    //const tokens = enc.encode(responses);
+    const enc = getEncoding("gpt2");
 
-    //alert(tokens);
+    alert("5");
+
+    const tokens = enc.encode(responses);
+
+    alert(tokens);
 
     //carbonEmission = carbon_Calculator()
 
@@ -58,6 +62,8 @@ getModel.addEventListener("click", async () => {
     let [tab] = await chrome.tabs.query({active:
     true, currentWindow: true});
 
+    alert("1");
+
     chrome.scripting.executeScript({
         target: {tabId: tab.id},
         func:   scrapeModelResponse,
@@ -65,8 +71,13 @@ getModel.addEventListener("click", async () => {
 })
 
 function scrapeModelResponse(){
+
+    alert("2");
     
     const response = document.querySelectorAll("p");
+
+    alert("3");
+
 
     const contents = Array.from(response)
         .map(p => p.textContent)
