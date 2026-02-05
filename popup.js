@@ -1,11 +1,11 @@
-import { getEncoding, encodingForModel } from "./node_modules/js-tiktoken";
-e = 2.71828;
-batch = 8;
+//import { getEncoding, encodingForModel } from "./node_modules/js-tiktoken"
+
+
+
 let getModel = document.getElementById('getModel');
 
 let list = document.getElementById('response');
 
-parameters = 800000;
 
 // Handler to receive Models from content Script
 
@@ -14,15 +14,11 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse)=> {
     //get responses
     let responses = request.contents;
 
-    alert("4");
+    //const enc = getEncoding("gpt2");
 
-    const enc = getEncoding("gpt2");
+    //const tokens = enc.encode(responses);
 
-    alert("5");
-
-    const tokens = enc.encode(responses);
-
-    alert(tokens);
+    //alert(tokens);
 
     //carbonEmission = carbon_Calculator()
 
@@ -71,13 +67,8 @@ getModel.addEventListener("click", async () => {
 })
 
 function scrapeModelResponse(){
-
-    alert("2");
     
     const response = document.querySelectorAll("p");
-
-    alert("3");
-
 
     const contents = Array.from(response)
         .map(p => p.textContent)
