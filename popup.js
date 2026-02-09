@@ -1,4 +1,5 @@
 import { Tiktoken } from "./node_modules/js-tiktoken/dist/lite.js";
+//import { getEncoding, encodingForModel } from "./node_modules/js-tiktoken";
 
 let getModel = document.getElementById('getModel');
 
@@ -16,7 +17,7 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse)=> {
 
     //const tokens = enc.encode(responses);
 
-    //alert(tokens);
+    //alert(len(tokens));
 
     //carbonEmission = carbon_Calculator()
 
