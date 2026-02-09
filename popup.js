@@ -1,6 +1,4 @@
-//import { getEncoding, encodingForModel } from "./node_modules/js-tiktoken"
-
-
+import { Tiktoken } from "./node_modules/js-tiktoken/dist/lite.js";
 
 let getModel = document.getElementById('getModel');
 
