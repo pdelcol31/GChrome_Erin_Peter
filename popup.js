@@ -54,6 +54,8 @@ function carbon_Calculator(parameters, tokens){
 }*/
 
 getModel.addEventListener("click", async () => {
+    console.log("Button clicked");
+
     let [tab] = await chrome.tabs.query({active:
     true, currentWindow: true});
 
