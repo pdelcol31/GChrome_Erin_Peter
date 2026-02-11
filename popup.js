@@ -1,4 +1,22 @@
-import { Tiktoken } from "./node_modules/js-tiktoken/dist/lite.js";
+//To get this file to actually work, need to run an esbuild command that will 
+//bundle this file with its imports. Here is the command I run:
+
+//npx esbuild popup.js --bundle --outfile=dist/popup.bundle.js --platform=browser --format=esm --loader:.wasm=file --external:chrome  
+
+//Here is a resource: https://esbuild.github.io/getting-started/#your-first-bundle 
+
+//https://dev.to/anilkumarum/3-ways-to-add-npm-package-in-chrome-extension-3e3b
+//https://dev.to/ramunarasinga-11/use-the-tiktoken-package-to-tokenize-text-for-openai-llms-3f34
+import { encodingForModel } from "js-tiktoken";
+
+
+//import the encoding type we want to use - this will depend on the model type
+//cl100k is used by 
+//https://developers.openai.com/cookbook/examples/how_to_count_tokens_with_tiktoken/
+// import cl100k_base from "./node_modules/js-tiktoken/dist/ranks/cl100k_base.js";
+// import { Tiktoken } from "./node_modules/js-tiktoken/dist/index.cjs";
+// import {getEncoding, encodingForModel } from "./node_modules/js-tiktoken/dist/index.cjs";
+// import {getEncoding, encodingForModel } from "Tiktoken";
 //import { getEncoding, encodingForModel } from "./node_modules/js-tiktoken";
 
 let getModel = document.getElementById('getModel');
@@ -13,11 +31,24 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse)=> {
     //get responses
     let responses = request.contents;
 
-    //const enc = getEncoding("gpt2");
+    //create encoder for token detection -- for now giving gp2 as model
+    // const enc = new Tiktoken({ model: "gpt2" });
+    //create encoder for token detection -- for now giving gp2 as model
+    // const enc = new Tiktoken({ model: "gpt2" });
+    // const enc = new Tiktoken(
+    //     cl100k_base.bpe_ranks,
+    //     cl100k_base.special_tokens,
+    //     cl100k_base.pat_str
+    // );
+    console.log("creating encoder");
+    //creating encoder for gpt2 (as of now)
+    const enc = encodingForModel("gpt2");
 
-    //const tokens = enc.encode(responses);
-
-    //alert(len(tokens));
+    //calculate tokens
+    const tokens = enc.encode(responses);
+    //display tokens
+    console.log("tokens = " + tokens.length);
+    alert("tokens = " + tokens.length);
 
     //carbonEmission = carbon_Calculator()
 
@@ -33,6 +64,9 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse)=> {
         li.innerText = responses;
         list.appendChild(li);
     }
+
+    //free the encoder when done
+    enc.free();
 });
 /*
 function carbon_Calculator(parameters, tokens){
@@ -59,8 +93,6 @@ getModel.addEventListener("click", async () => {
     let [tab] = await chrome.tabs.query({active:
     true, currentWindow: true});
 
-    alert("1");
-
     chrome.scripting.executeScript({
         target: {tabId: tab.id},
         func:   scrapeModelResponse,
@@ -68,13 +100,14 @@ getModel.addEventListener("click", async () => {
 })
 
 function scrapeModelResponse(){
+    console.log("scrapeModelResponse running");
     
     const response = document.querySelectorAll("p");
 
     const contents = Array.from(response)
         .map(p => p.textContent)
         .join(" ");
-
+    
     chrome.runtime.sendMessage({contents});
 }
 
