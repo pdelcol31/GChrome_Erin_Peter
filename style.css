@@ -1,5 +1,13 @@
 body {
     min-width: 300px;
+    display: flex;
+    align-items: center;
+    background: #222;
+    justify-content: center;
+}
+button{
+    width: 100px;
+    height: 20px;
 }
 .center{
     text-align: center;

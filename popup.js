@@ -88,7 +88,7 @@ function carbon_Calculator(parameters, tokens){
 }*/
 
 getModel.addEventListener("click", async () => {
-    console.log("Button clicked");
+    chrome.runtime.sendMessage({event: 'onstart' })
 
     let [tab] = await chrome.tabs.query({active:
     true, currentWindow: true});
@@ -108,6 +108,7 @@ function scrapeModelResponse(){
         .map(p => p.textContent)
         .join(" ");
     
+    chrome.runtime.sendMessage({event: 'onstop' })
     chrome.runtime.sendMessage({contents});
 }
 
