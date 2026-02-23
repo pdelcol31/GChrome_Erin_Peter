@@ -449,12 +449,22 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
     console.log("creating encoder");
     const enc = encodingForModel("gpt2");
     const tokens = enc.encode(responses);
-    console.log("tokens = " + tokens.length);
-    alert("tokens = " + tokens.length);
-    chrome.runtime.sendMessage({
-      token: tokens,
-      event: "user_action",
-      payload: { clicked: "buttonA", ts: Date.now() }
+    const tokenCount = tokens.length;
+    console.log("tokens = " + tokenCount);
+    alert("tokens = " + tokenCount);
+    chrome.runtime.sendMessage({ type: "POST_EMISSION", tokenCount }, (resp) => {
+      if (chrome.runtime.lastError) {
+        console.error("sendMessage failed:", chrome.runtime.lastError.message);
+        alert("sendMessage failed: " + chrome.runtime.lastError.message);
+        return;
+      }
+      if (!resp?.ok) {
+        console.error(resp?.error);
+        alert("Failed: " + (resp?.error ?? "unknown error"));
+        return;
+      }
+      console.log(resp.data);
+      alert("Sent!");
     });
     let li = document.createElement("li");
     li.innerText = responses;
