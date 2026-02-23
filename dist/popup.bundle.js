@@ -441,26 +441,25 @@ var getModel = document.getElementById("getModel");
 var list = document.getElementById("response");
 chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
   let responses = request.contents;
-  console.log("creating encoder");
-  const enc = encodingForModel("gpt2");
-  const tokens = enc.encode(responses);
-  console.log("tokens = " + tokens.length);
-  alert("tokens = " + tokens.length);
-  chrome.runtime.sendMessage({
-    token: tokens,
-    event: "user_action",
-    payload: { clicked: "buttonA", ts: Date.now() }
-  });
   if (responses == null || responses.length == 0) {
     let li = document.createElement("li");
     li.innerText = "No response Found";
     list.appendChild(li);
   } else {
+    console.log("creating encoder");
+    const enc = encodingForModel("gpt2");
+    const tokens = enc.encode(responses);
+    console.log("tokens = " + tokens.length);
+    alert("tokens = " + tokens.length);
+    chrome.runtime.sendMessage({
+      token: tokens,
+      event: "user_action",
+      payload: { clicked: "buttonA", ts: Date.now() }
+    });
     let li = document.createElement("li");
     li.innerText = responses;
     list.appendChild(li);
   }
-  enc.free();
 });
 getModel.addEventListener("click", async () => {
   chrome.runtime.sendMessage({ event: "onstart" });
