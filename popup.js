@@ -40,23 +40,7 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse)=> {
     //     cl100k_base.special_tokens,
     //     cl100k_base.pat_str
     // );
-    console.log("creating encoder");
-    //creating encoder for gpt2 (as of now)
-    const enc = encodingForModel("gpt2");
-
-    //calculate tokens
-    const tokens = enc.encode(responses);
-    //display tokens
-    console.log("tokens = " + tokens.length);
-    alert("tokens = " + tokens.length);
-
-    chrome.runtime.sendMessage({
-        token: tokens,
-        event: "user_action",
-        payload: { clicked: "buttonA", ts: Date.now() }
-      });
-    //carbonEmission = carbon_Calculator()
-
+    
     //display responses in popup
     if(responses == null || responses.length == 0){
         //No response found
@@ -65,13 +49,27 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse)=> {
         list.appendChild(li);
     }
     else {
+        console.log("creating encoder");
+        //creating encoder for gpt2 (as of now)
+        const enc = encodingForModel("gpt2");
+
+        //calculate tokens
+        const tokens = enc.encode(responses);
+        //display tokens
+        console.log("tokens = " + tokens.length);
+        alert("tokens = " + tokens.length);
+
+        chrome.runtime.sendMessage({
+            token: tokens,
+            event: "user_action",
+            payload: { clicked: "buttonA", ts: Date.now() }
+        });
+        //carbonEmission = carbon_Calculator()
+
         let li = document.createElement('li');
         li.innerText = responses;
         list.appendChild(li);
     }
-
-    //free the encoder when done
-    enc.free();
 });
 /*
 function carbon_Calculator(parameters, tokens){
