@@ -1,5 +1,5 @@
 async function sendToApi(event, payload) {
-    const res = await fetch("https://api.yourdomain.com/ingest", {
+    const res = await fetch("http://127.0.0.1:8000/api/data", {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
