@@ -1,22 +1,28 @@
-// let data = {
-//     "event": "onStop/onStart",
-//     "prefs": {
-//         "locationId": '123',
-//         "startDate": '2026-02-20',
-//         "endDate": '2026-02-20'
-//     }
-// }
-
-chrome.runtime.onMessage.addListener(data => {
-    alert("background");
-    switch(data.event){
-        case 'onstop':
-            console.log("On stop");
-            break;
-        case 'onstart':
-            console.log("On start");
-            break;
-        default:
-            break;
-    };
-})
+async function sendToApi(event, payload) {
+    const res = await fetch("https://api.yourdomain.com/ingest", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "X-API-Key": "REPLACE_WITH_A_REAL_KEY_STRATEGY"
+      },
+      body: JSON.stringify({
+        event,
+        payload,
+        user_id: "optional-anonymous-id"
+      })
+    });
+  
+    if (!res.ok) {
+      const text = await res.text();
+      throw new Error(`API error ${res.status}: ${text}`);
+    }
+  }
+  
+  chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
+    if (msg?.type === "INGEST") {
+      sendToApi(msg.event, msg.payload)
+        .then(() => sendResponse({ ok: true }))
+        .catch((e) => sendResponse({ ok: false, error: e.message }));
+      return true; // keeps the message channel open for async
+    }
+  });

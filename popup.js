@@ -50,6 +50,11 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse)=> {
     console.log("tokens = " + tokens.length);
     alert("tokens = " + tokens.length);
 
+    chrome.runtime.sendMessage({
+        token: tokens,
+        event: "user_action",
+        payload: { clicked: "buttonA", ts: Date.now() }
+      });
     //carbonEmission = carbon_Calculator()
 
     //display responses in popup
