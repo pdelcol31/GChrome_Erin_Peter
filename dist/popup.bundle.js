@@ -446,6 +446,11 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
   const tokens = enc.encode(responses);
   console.log("tokens = " + tokens.length);
   alert("tokens = " + tokens.length);
+  chrome.runtime.sendMessage({
+    token: tokens,
+    event: "user_action",
+    payload: { clicked: "buttonA", ts: Date.now() }
+  });
   if (responses == null || responses.length == 0) {
     let li = document.createElement("li");
     li.innerText = "No response Found";
@@ -455,9 +460,10 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
     li.innerText = responses;
     list.appendChild(li);
   }
+  enc.free();
 });
 getModel.addEventListener("click", async () => {
-  console.log("Button clicked");
+  chrome.runtime.sendMessage({ event: "onstart" });
   let [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
   chrome.scripting.executeScript({
     target: { tabId: tab.id },
@@ -468,5 +474,6 @@ function scrapeModelResponse() {
   console.log("scrapeModelResponse running");
   const response = document.querySelectorAll("p");
   const contents = Array.from(response).map((p) => p.textContent).join(" ");
+  chrome.runtime.sendMessage({ event: "onstop" });
   chrome.runtime.sendMessage({ contents });
 }
