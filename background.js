@@ -4,7 +4,7 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
   console.log("SW received:", request);
 
   if (request?.type === "POST_EMISSION") {
-    fetch("http://127.0.0.1:8000/data", {
+    fetch("http://165.82.168.3:8000/data", {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
