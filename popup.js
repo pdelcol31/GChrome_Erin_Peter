@@ -9,16 +9,6 @@
 //https://dev.to/ramunarasinga-11/use-the-tiktoken-package-to-tokenize-text-for-openai-llms-3f34
 import { encodingForModel } from "js-tiktoken";
 
-
-//import the encoding type we want to use - this will depend on the model type
-//cl100k is used by 
-//https://developers.openai.com/cookbook/examples/how_to_count_tokens_with_tiktoken/
-// import cl100k_base from "./node_modules/js-tiktoken/dist/ranks/cl100k_base.js";
-// import { Tiktoken } from "./node_modules/js-tiktoken/dist/index.cjs";
-// import {getEncoding, encodingForModel } from "./node_modules/js-tiktoken/dist/index.cjs";
-// import {getEncoding, encodingForModel } from "Tiktoken";
-//import { getEncoding, encodingForModel } from "./node_modules/js-tiktoken";
-
 let getModel = document.getElementById('getModel');
 
 let list = document.getElementById('response');
@@ -103,17 +93,17 @@ function carbon_Calculator(parameters, tokens){
     return;
 }*/
 
-getModel.addEventListener("click", async () => {
-    chrome.runtime.sendMessage({event: 'onstart' })
+// getModel.addEventListener("click", async () => {
+//     chrome.runtime.sendMessage({event: 'onstart' })
 
-    let [tab] = await chrome.tabs.query({active:
-    true, currentWindow: true});
+//     let [tab] = await chrome.tabs.query({active:
+//     true, currentWindow: true});
 
-    chrome.scripting.executeScript({
-        target: {tabId: tab.id},
-        func:   scrapeModelResponse,
-    });
-})
+//     chrome.scripting.executeScript({
+//         target: {tabId: tab.id},
+//         func:   scrapeModelResponse,
+//     });
+// })
 
 function scrapeModelResponse(){
     console.log("scrapeModelResponse running");
