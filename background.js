@@ -1,4 +1,6 @@
 console.log("background service worker loaded");
+import { encodingForModel } from "js-tiktoken";
+
 
 chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
   console.log("SW received:", request);
@@ -29,3 +31,44 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
   }
 
 });
+
+// Handler to receive Models from content Script
+chrome.runtime.onMessage.addListener((request, sender, sendResponse)=> {
+  // 1. Filter for the specific message type from Content Script
+  if (request.type === "COUNT_TOKENS") {
+    //get responses
+    let responses = request.contents;
+    
+    //display responses in popup
+    if(responses == null || responses.length == 0){
+      //No response found
+      console.log("No response found");
+      return;
+    }
+    else {
+      console.log("creating encoder");
+      //creating encoder for gpt2 (as of now)
+      const enc = encodingForModel("gpt2");
+
+      //calculate tokens
+      const tokens = enc.encode(responses);
+      const tokenCount = tokens.length;
+      //display tokens
+      console.log("tokens calculated in background = " + tokenCount);
+
+      chrome.runtime.sendMessage({ type: "POST_EMISSION", tokenCount }, (resp) => {
+        if (chrome.runtime.lastError) {
+          console.error("sendMessage failed:", chrome.runtime.lastError.message);
+          return;
+        }
+        if (!resp?.ok) {
+          console.error(resp?.error);
+          return;
+        }
+        console.log(resp.data);
+      });
+    }
+  }
+});
+
+
