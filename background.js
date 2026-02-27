@@ -4,7 +4,7 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
   console.log("SW received:", request);
 
   if (request?.type === "POST_EMISSION") {
-    fetch("http://127.0.0.1:8000/data", {
+    fetch("http://127.0.0.1:8000/write-csv/", {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
@@ -12,9 +12,14 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
         "X-From-Extension": "1"
       },
       body: JSON.stringify({
-        tokens: request.tokenCount,
-        location: "Haverford",
-        date: new Date().toLocaleDateString("en-US")
+        file_name: "emissions.csv",
+        data:[
+          {
+            tokens: request.tokenCount,
+            location: "Haverford",
+            date: new Date().toLocaleDateString("en-US")
+          }
+        ]
       })
     })
       .then(async (res) => {
