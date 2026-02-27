@@ -438,8 +438,14 @@ function encodingForModel(model, extendSpecialTokens) {
 
 // background.js
 console.log("background service worker loaded");
+var currentUserLocation = "";
 chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
   console.log("SW received:", request);
+  updateLocation();
+  let user_location = "";
+  if (currentUserLocation) {
+    user_location = currentUserLocation;
+  }
   if (request?.type === "POST_EMISSION") {
     fetch("http://165.82.168.3:8000/data", {
       method: "POST",
@@ -450,7 +456,8 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
       },
       body: JSON.stringify({
         tokens: request.tokenCount,
-        location: "Haverford",
+        location: user_location,
+        //location: "Haverford",
         date: (/* @__PURE__ */ new Date()).toLocaleDateString("en-US")
       })
     }).then(async (res) => {
@@ -461,6 +468,14 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
     return true;
   }
 });
+function updateLocation() {
+  navigator.geolocation.getCurrentPosition((position) => {
+    const lat = position.coords.latitude;
+    const lng = position.coords.longitude;
+    currentUserLocation = `${lat}, ${lng}`;
+    console.log("Location saved:", currentUserLocation);
+  });
+}
 chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
   if (request.action === "COUNT_TOKENS") {
     let responses = request.text;

@@ -3,10 +3,15 @@
 
 console.log("background service worker loaded");
 import { encodingForModel } from "js-tiktoken";
-
+let currentUserLocation = ""; //global location variable ("lat,long")
 
 chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
   console.log("SW received:", request);
+  updateLocation();
+  let user_location = "";
+  if(currentUserLocation){
+    user_location = currentUserLocation;
+  }
 
   if (request?.type === "POST_EMISSION") {
     fetch("http://165.82.168.3:8000/data", {
@@ -18,7 +23,8 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
       },
       body: JSON.stringify({
         tokens: request.tokenCount,
-        location: "Haverford",
+        location: user_location,
+        //location: "Haverford",
         date: new Date().toLocaleDateString("en-US")
       })
     })
@@ -34,6 +40,16 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
   }
 
 });
+
+//function to get user location
+function updateLocation() {
+    navigator.geolocation.getCurrentPosition((position) => {
+        const lat = position.coords.latitude;
+        const lng = position.coords.longitude;
+        currentUserLocation = `${lat}, ${lng}`; // Save to global
+        console.log("Location saved:", currentUserLocation);
+    });
+}
 
 // Handler to receive Models from content Script
 chrome.runtime.onMessage.addListener((request, sender, sendResponse)=> {
