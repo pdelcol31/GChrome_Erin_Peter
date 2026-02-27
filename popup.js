@@ -15,21 +15,9 @@ let list = document.getElementById('response');
 
 
 // Handler to receive Models from content Script
-
 chrome.runtime.onMessage.addListener((request, sender, sendResponse)=> {
-
     //get responses
     let responses = request.contents;
-
-    //create encoder for token detection -- for now giving gp2 as model
-    // const enc = new Tiktoken({ model: "gpt2" });
-    //create encoder for token detection -- for now giving gp2 as model
-    // const enc = new Tiktoken({ model: "gpt2" });
-    // const enc = new Tiktoken(
-    //     cl100k_base.bpe_ranks,
-    //     cl100k_base.special_tokens,
-    //     cl100k_base.pat_str
-    // );
     
     //display responses in popup
     if(responses == null || responses.length == 0){
@@ -43,7 +31,6 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse)=> {
         //creating encoder for gpt2 (as of now)
         const enc = encodingForModel("gpt2");
          
-
         //calculate tokens
         const tokens = enc.encode(responses);
         const tokenCount = tokens.length;
@@ -93,17 +80,17 @@ function carbon_Calculator(parameters, tokens){
     return;
 }*/
 
-// getModel.addEventListener("click", async () => {
-//     chrome.runtime.sendMessage({event: 'onstart' })
+getModel.addEventListener("click", async () => {
+    chrome.runtime.sendMessage({event: 'onstart' })
 
-//     let [tab] = await chrome.tabs.query({active:
-//     true, currentWindow: true});
+    let [tab] = await chrome.tabs.query({active:
+    true, currentWindow: true});
 
-//     chrome.scripting.executeScript({
-//         target: {tabId: tab.id},
-//         func:   scrapeModelResponse,
-//     });
-// })
+    chrome.scripting.executeScript({
+        target: {tabId: tab.id},
+        func:   scrapeModelResponse,
+    });
+})
 
 function scrapeModelResponse(){
     console.log("scrapeModelResponse running");
