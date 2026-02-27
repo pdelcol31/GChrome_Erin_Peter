@@ -1,3 +1,6 @@
+//Now using a background.bundle.js file from manifest because we need to install the js-tiktoken library. Make edits in this file and then run the command below to bundle:
+// npx esbuild background.js --bundle --outfile=dist/background.bundle.js --platform=browser --format=esm --loader:.wasm=file --external:chrome
+
 console.log("background service worker loaded");
 import { encodingForModel } from "js-tiktoken";
 
@@ -35,9 +38,9 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
 // Handler to receive Models from content Script
 chrome.runtime.onMessage.addListener((request, sender, sendResponse)=> {
   // 1. Filter for the specific message type from Content Script
-  if (request.type === "COUNT_TOKENS") {
+  if (request.action === "COUNT_TOKENS") {
     //get responses
-    let responses = request.contents;
+    let responses = request.text;
     
     //display responses in popup
     if(responses == null || responses.length == 0){
