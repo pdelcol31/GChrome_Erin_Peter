@@ -17,9 +17,12 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
         "X-From-Extension": "1"
       },
       body: JSON.stringify({
-        tokens: request.tokenCount,
-        location: "Haverford",
-        date: new Date().toLocaleDateString("en-US")
+        file_name: "emissions.csv",
+        data: [
+          tokens: request.tokenCount,
+          location: "Haverford",
+          date: new Date().toLocaleDateString("en-US")
+          ]
       })
     })
       .then(async (res) => {
