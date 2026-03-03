@@ -48,3 +48,22 @@ observer.observe(document.body, {
   childList: true,
   subtree: true
 });
+
+//function to get and send user location
+chrome.runtime.onMessage.addListener((request, sender, sendResponse)=> {
+    if (request.action === "GET_LOCATION") {
+        navigator.geolocation.getCurrentPosition((position) => {
+            const lat = position.coords.latitude;
+            const lng = position.coords.longitude;
+            sendResponse({
+                lat: lat,
+                lng: lng
+            })
+        },
+        (error) => {
+        sendResponse({ error: error.message });
+        }
+      );
+    }
+    return true; //keep channel open
+});
