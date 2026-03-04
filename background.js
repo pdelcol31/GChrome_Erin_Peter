@@ -42,7 +42,7 @@ import { encodingForModel } from "js-tiktoken";
 // });
 
 chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
-  console.log("SW received:", request);
+  //console.log("SW received:", request);
 
   if (request?.action === "COUNT_TOKENS") {
     //get responses
@@ -55,7 +55,7 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
       return;
     }
     else {
-      console.log("creating encoder");
+      //console.log("creating encoder");
       //creating encoder for gpt2 (as of now)
       const enc = encodingForModel("gpt2");
 
