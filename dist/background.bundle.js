@@ -439,14 +439,12 @@ function encodingForModel(model, extendSpecialTokens) {
 // background.js
 console.log("background service worker loaded");
 chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
-  console.log("SW received:", request);
   if (request?.action === "COUNT_TOKENS") {
     let responses = request.text;
     if (responses == null || responses.length == 0) {
       console.log("No response found");
       return;
     } else {
-      console.log("creating encoder");
       const enc = encodingForModel("gpt2");
       const tokens = enc.encode(responses);
       const tokenCount = tokens.length;
