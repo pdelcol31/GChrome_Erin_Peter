@@ -64,39 +64,39 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
       const tokenCount = tokens.length;
       //display tokens
       console.log("tokens calculated in background = " + tokenCount);
-    }
-
-    getActiveTabLocation().then((loc) => {
-      const locationToUse = loc || "Unknown";
-      console.log("location = " + locationToUse)
-      
-      fetch("http://165.82.168.3:8000/write-csv/", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          "X-API-Key": "dev_key_change_me",
-          "X-From-Extension": "1",
-        },
-        body: JSON.stringify({
-          file_name: "emissions.csv",
-          data: [
-            {
-              tokens: tokenCount,
-              location: locationToUse,
-              date: new Date().toLocaleDateString("en-US"),
-            },
-          ],
-        }),
-      })
-        .then(async (res) => {
-          const text = await res.text();
-          if (!res.ok) throw new Error(`HTTP ${res.status}: ${text}`);
-          return JSON.parse(text);
+    
+      getActiveTabLocation().then((loc) => {
+        const locationToUse = loc || "Unknown";
+        console.log("location = " + locationToUse)
+        
+        fetch("http://165.82.168.3:8000/write-csv/", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "X-API-Key": "dev_key_change_me",
+            "X-From-Extension": "1",
+          },
+          body: JSON.stringify({
+            file_name: "emissions.csv",
+            data: [
+              {
+                tokens: tokenCount,
+                location: locationToUse,
+                date: new Date().toLocaleDateString("en-US"),
+              },
+            ],
+          }),
         })
-        .then((data) => sendResponse({ ok: true, tokenCount, data }))
-        .catch((err) => sendResponse({ ok: false, tokenCount, error: err.message }));
-    });
-    return true;
+          .then(async (res) => {
+            const text = await res.text();
+            if (!res.ok) throw new Error(`HTTP ${res.status}: ${text}`);
+            return JSON.parse(text);
+          })
+          .then((data) => sendResponse({ ok: true, tokenCount, data }))
+          .catch((err) => sendResponse({ ok: false, tokenCount, error: err.message }));
+      });
+      return true;
+    }
   }
 
 });
