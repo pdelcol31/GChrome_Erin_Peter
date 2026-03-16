@@ -5,6 +5,17 @@ let streamTimer;
 // Keep track of which message elements we've already scraped
 const seenMessages = new Set(); 
 
+// Function to find and store saved chats
+const baselineExistingMessages = () => {
+    const existing = document.querySelectorAll('.markdown');
+    existing.forEach(el => {
+        // Add existing text to the Set so it's ignored later
+        seenMessages.add(el.innerText);
+    });
+};
+
+baselineExistingMessages();
+
 const observer = new MutationObserver((mutations, obs) => {
     // Reset the timer every time a new "chunk" appears
     clearTimeout(streamTimer);

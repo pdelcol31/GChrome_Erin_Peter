@@ -449,32 +449,34 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
       const tokens = enc.encode(responses);
       const tokenCount = tokens.length;
       console.log("tokens calculated in background = " + tokenCount);
+      getActiveTabLocation().then((loc) => {
+        const locationToUse = loc || "Unknown";
+        console.log("location = " + locationToUse);
+        fetch("http://165.82.168.3:8000/write-csv/", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "X-API-Key": "dev_key_change_me",
+            "X-From-Extension": "1"
+          },
+          body: JSON.stringify({
+            file_name: "emissions.csv",
+            data: [
+              {
+                tokens: tokenCount,
+                location: locationToUse,
+                date: (/* @__PURE__ */ new Date()).toLocaleDateString("en-US")
+              }
+            ]
+          })
+        }).then(async (res) => {
+          const text = await res.text();
+          if (!res.ok) throw new Error(`HTTP ${res.status}: ${text}`);
+          return JSON.parse(text);
+        }).then((data) => sendResponse({ ok: true, tokenCount, data })).catch((err) => sendResponse({ ok: false, tokenCount, error: err.message }));
+      });
+      return true;
     }
-    getActiveTabLocation().then((loc) => {
-      const locationToUse = loc || "Unknown";
-      console.log("location = " + locationToUse);
-      fetch("http://165.82.168.3:8000/data", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          "X-API-Key": "dev_key_change_me",
-          "X-From-Extension": "1"
-        },
-        body: JSON.stringify({
-          file_name: "emissions.csv",
-          data: {
-            tokens: request.tokenCount,
-            location: locationToUse,
-            date: (/* @__PURE__ */ new Date()).toLocaleDateString("en-US")
-          }
-        })
-      }).then(async (res) => {
-        const text = await res.text();
-        if (!res.ok) throw new Error(`HTTP ${res.status}: ${text}`);
-        return JSON.parse(text);
-      }).then((data) => sendResponse({ ok: true, data })).catch((err) => sendResponse({ ok: false, error: err.message }));
-    });
-    return true;
   }
 });
 async function getActiveTabLocation() {
