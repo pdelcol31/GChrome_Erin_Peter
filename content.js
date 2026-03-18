@@ -6,15 +6,87 @@ let streamTimer;
 const seenMessages = new Set(); 
 
 // Function to find and store saved chats
-const baselineExistingMessages = () => {
-    const existing = document.querySelectorAll('.markdown');
-    existing.forEach(el => {
-        // Add existing text to the Set so it's ignored later
-        seenMessages.add(el.innerText);
-    });
-};
+// const baselineExistingMessages = () => {
 
-baselineExistingMessages();
+(function() {
+    // track current/last url
+    let lastUrl = location.href;
+
+    // Setup the listener for URL change
+    const observer = new MutationObserver(() => {
+        const url = location.href;
+        if (url !== lastUrl) {
+            lastUrl = url;
+            console.log("URL Changed to:", url);
+            getExistingMessages();
+        }
+    });
+
+    // Start watching the 'body' for any changes (which happens during navigation)
+    observer.observe(document.body, { subtree: true, childList: true });
+
+    //scan for existingMessages in the current html page (e.g. saved chats)
+    const getExistingMessages = () => {
+        console.log("IN getExistingMessages");
+        setTimeout(() => {
+            const existing_p_tags = document.querySelectorAll('p[data-is-last-node="true"], p[data-is-last-node=""]');
+            console.log(existing_p_tags);
+            existing_p_tags.forEach((p) => {
+                const existing_messageContainer = p.closest('.markdown');
+                existing_contents = existing_messageContainer.innerText;
+                existing_message_id = getSpecialCharId(existing_messageContainer);
+                // if(!seenMessages.has(existing_contents)){
+                if(existing_message_id && !seenMessages.has(existing_message_id)){
+                    console.log("existing message id: " + existing_message_id);
+                    // console.log("Existing text!!!!!!!!: " +existing_contents);
+                    // seenMessages.add(existing_contents);
+                    seenMessages.add(existing_message_id);
+                }
+            });
+        }, 5000);
+    };
+
+    // Run once on initial url load
+    if (document.readyState === 'complete') getExistingMessages();
+    else window.addEventListener('load', getExistingMessages); //wait for loading
+})();
+
+function getSpecialCharId(container) {
+    // 1. Normalize the string to a standard form (handles different emoji encodings)
+    // 2. Trim trailing/leading spaces
+    // 3. Replace all "runs" of whitespace/newlines with a single space
+    const cleanText = container.innerText
+        .normalize('NFC')
+        .trim()
+        .replace(/\s+/g, ' '); 
+
+    // Use a large enough slice to be unique (e.g., first 150 chars)
+    // We ignore the total length because it's inconsistent across URLs
+    return cleanText.substring(0, 150);
+}
+function getMessageId(pTag) {
+    const p = container.querySelector('p');
+    
+    // 1. STRICT CHECK: If it doesn't have the "last-node" attribute, ignore it.
+    if (!p.hasAttribute('data-is-last-node')) return null;
+
+    const text = container.innerText.trim();
+
+    // 2. PATTERN CHECK: If it contains the placeholder "Writing", ignore it.
+    // Adjust "Writing" to whatever specific placeholder your site uses.
+    if (text.includes("Writing Writing")) return null;
+
+    // 3. NORMALIZE: Clean up whitespace and take a unique slice
+    const cleanText = text.normalize('NFC').replace(/\s+/g, ' ');
+    return cleanText.substring(0, 150);
+
+    // const text = pTag.innerText.trim();
+    // const dataEnd = pTag.getAttribute('data-end') || text.length; // Use the attribute or actual length
+    
+    // // Create a fingerprint: "Length-First30Chars"
+    // return `${dataEnd}-${text.substring(0, 30)}`;
+}
+// getExistingMessages();
 
 const observer = new MutationObserver((mutations, obs) => {
     // Reset the timer every time a new "chunk" appears
@@ -36,11 +108,14 @@ const observer = new MutationObserver((mutations, obs) => {
                  streamTimer = setTimeout(() => {
                     // Capture the text
                     const contents = messageContainer.innerText;
+                    const message_id = getSpecialCharId(messageContainer);
 
                     // Check if this response has been seen before
-                    if(!seenMessages.has(contents)){
-                        seenMessages.add(contents);
-                        console.log("Scraped Data:", contents);
+                    if(message_id && !seenMessages.has(message_id)){
+                        console.log("scraped message id: " + message_id);
+                    // if(!seenMessages.has(contents)){
+                        seenMessages.add(message_id);
+                        // console.log("Scraped Data:", contents);
 
                         // Send to background.js
                         chrome.runtime.sendMessage({ 
@@ -48,7 +123,7 @@ const observer = new MutationObserver((mutations, obs) => {
                             text: contents 
                         });
                     }
-                }, 2000);
+                }, 5000);
             }
         }
     });

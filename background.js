@@ -42,20 +42,17 @@ import { encodingForModel } from "js-tiktoken";
 // });
 
 chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
-  //console.log("SW received:", request);
 
   if (request?.action === "COUNT_TOKENS") {
     //get responses
     let responses = request.text;
     
-    //display responses in popup
     if(responses == null || responses.length == 0){
       //No response found
       console.log("No response found");
       return;
     }
     else {
-      //console.log("creating encoder");
       //creating encoder for gpt2 (as of now)
       const enc = encodingForModel("gpt2");
 
@@ -100,6 +97,71 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
   }
 
 });
+
+
+
+
+
+// chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
+//   //console.log("SW received:", request);
+
+//   if (request?.action === "COUNT_TOKENS") {
+//     //get responses
+//     let responses = request.text;
+    
+//     //display responses in popup
+//     if(responses == null || responses.length == 0){
+//       //No response found
+//       console.log("No response found");
+//       return;
+//     }
+//     else {
+//       //console.log("creating encoder");
+//       //creating encoder for gpt2 (as of now)
+//       const enc = encodingForModel("gpt2");
+
+//       //calculate tokens
+//       const tokens = enc.encode(responses);
+//       const tokenCount = tokens.length;
+//       //display tokens
+//       console.log("tokens calculated in background = " + tokenCount);
+    
+//       getActiveTabLocation().then((loc) => {
+//         const locationToUse = loc || "Unknown";
+//         console.log("location = " + locationToUse)
+        
+//         fetch("http://165.82.168.3:8000/write-csv/", {
+//           method: "POST",
+//           headers: {
+//             "Content-Type": "application/json",
+//             "X-API-Key": "dev_key_change_me",
+//             "X-From-Extension": "1",
+//           },
+//           body: JSON.stringify({
+//             file_name: "emissions.csv",
+//             data: [
+//               {
+//                 tokens: tokenCount,
+//                 location: locationToUse,
+//                 date: new Date().toLocaleDateString("en-US"),
+//               },
+//             ],
+//           }),
+//         })
+//           .then(async (res) => {
+//             const text = await res.text();
+//             if (!res.ok) throw new Error(`HTTP ${res.status}: ${text}`);
+//             return JSON.parse(text);
+//           })
+//           .then((data) => sendResponse({ ok: true, tokenCount, data }))
+//           .catch((err) => sendResponse({ ok: false, tokenCount, error: err.message }));
+//       });
+//       return true;
+//     }
+//   }
+
+// });
+
 // Function to get user location from content.js
 async function getActiveTabLocation() {
   const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
