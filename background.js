@@ -4,6 +4,59 @@
 console.log("background service worker loaded");
 import { encodingForModel } from "js-tiktoken";
 
+chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
+
+  if (request?.action === "COUNT_TOKENS") {
+    //get responses and location
+    let responses = request.text;
+    let userLocation = request.location;
+    
+    if(responses == null || responses.length == 0){
+      //No response found
+      console.log("No response found");
+      return;
+    }
+    else {
+      //creating encoder for gpt2 (as of now)
+      const enc = encodingForModel("gpt2");
+
+      //calculate tokens
+      const tokens = enc.encode(responses);
+      const tokenCount = tokens.length;
+      //display tokens
+      console.log("tokens calculated in background = " + tokenCount);
+      console.log("location = " + userLocation)
+        
+      fetch("http://165.82.168.3:8000/write-csv/", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "X-API-Key": "dev_key_change_me",
+          "X-From-Extension": "1",
+        },
+        body: JSON.stringify({
+          file_name: "emissions.csv",
+          data: [
+            {
+              tokens: tokenCount,
+              location: userLocation,
+              date: new Date().toLocaleDateString("en-US"),
+            },
+          ],
+        }),
+      })
+      .then(async (res) => {
+        const text = await res.text();
+        if (!res.ok) throw new Error(`HTTP ${res.status}: ${text}`);
+        return JSON.parse(text);
+      })
+      .then((data) => sendResponse({ ok: true, tokenCount, data }))
+      .catch((err) => sendResponse({ ok: false, tokenCount, error: err.message }));
+      return true;
+    }
+  }
+});
+
 // chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
 //   console.log("SW received:", request);
 
@@ -41,62 +94,63 @@ import { encodingForModel } from "js-tiktoken";
 
 // });
 
-chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
+//MOST RECENT WORKING VERSION!!!!!!!!!!!!!!!!!!!!
+// chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
 
-  if (request?.action === "COUNT_TOKENS") {
-    //get responses
-    let responses = request.text;
+//   if (request?.action === "COUNT_TOKENS") {
+//     //get responses
+//     let responses = request.text;
     
-    if(responses == null || responses.length == 0){
-      //No response found
-      console.log("No response found");
-      return;
-    }
-    else {
-      //creating encoder for gpt2 (as of now)
-      const enc = encodingForModel("gpt2");
+//     if(responses == null || responses.length == 0){
+//       //No response found
+//       console.log("No response found");
+//       return;
+//     }
+//     else {
+//       //creating encoder for gpt2 (as of now)
+//       const enc = encodingForModel("gpt2");
 
-      //calculate tokens
-      const tokens = enc.encode(responses);
-      const tokenCount = tokens.length;
-      //display tokens
-      console.log("tokens calculated in background = " + tokenCount);
+//       //calculate tokens
+//       const tokens = enc.encode(responses);
+//       const tokenCount = tokens.length;
+//       //display tokens
+//       console.log("tokens calculated in background = " + tokenCount);
     
-      getActiveTabLocation().then((loc) => {
-        const locationToUse = loc || "Unknown";
-        console.log("location = " + locationToUse)
+//       getActiveTabLocation().then((loc) => {
+//         const locationToUse = loc || "Unknown";
+//         console.log("location = " + locationToUse)
         
-        fetch("http://165.82.168.3:8000/write-csv/", {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            "X-API-Key": "dev_key_change_me",
-            "X-From-Extension": "1",
-          },
-          body: JSON.stringify({
-            file_name: "emissions.csv",
-            data: [
-              {
-                tokens: tokenCount,
-                location: locationToUse,
-                date: new Date().toLocaleDateString("en-US"),
-              },
-            ],
-          }),
-        })
-          .then(async (res) => {
-            const text = await res.text();
-            if (!res.ok) throw new Error(`HTTP ${res.status}: ${text}`);
-            return JSON.parse(text);
-          })
-          .then((data) => sendResponse({ ok: true, tokenCount, data }))
-          .catch((err) => sendResponse({ ok: false, tokenCount, error: err.message }));
-      });
-      return true;
-    }
-  }
+//         fetch("http://165.82.168.3:8000/write-csv/", {
+//           method: "POST",
+//           headers: {
+//             "Content-Type": "application/json",
+//             "X-API-Key": "dev_key_change_me",
+//             "X-From-Extension": "1",
+//           },
+//           body: JSON.stringify({
+//             file_name: "emissions.csv",
+//             data: [
+//               {
+//                 tokens: tokenCount,
+//                 location: locationToUse,
+//                 date: new Date().toLocaleDateString("en-US"),
+//               },
+//             ],
+//           }),
+//         })
+//           .then(async (res) => {
+//             const text = await res.text();
+//             if (!res.ok) throw new Error(`HTTP ${res.status}: ${text}`);
+//             return JSON.parse(text);
+//           })
+//           .then((data) => sendResponse({ ok: true, tokenCount, data }))
+//           .catch((err) => sendResponse({ ok: false, tokenCount, error: err.message }));
+//       });
+//       return true;
+//     }
+//   }
 
-});
+// });
 
 
 

@@ -13,5 +13,9 @@
   "content_scripts": [{
     "matches": ["https://chatgpt.com/*"],
     "js": ["content.js"]
+  }],
+  "web_accessible_resources": [{
+    "resources": ["Pennsylvania_County_Boundaries.geojson"],
+      "matches": ["<all_urls>"]
   }]
 }

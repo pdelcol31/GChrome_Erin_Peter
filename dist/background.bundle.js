@@ -441,6 +441,7 @@ console.log("background service worker loaded");
 chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
   if (request?.action === "COUNT_TOKENS") {
     let responses = request.text;
+    let userLocation = request.location;
     if (responses == null || responses.length == 0) {
       console.log("No response found");
       return;
@@ -449,44 +450,30 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
       const tokens = enc.encode(responses);
       const tokenCount = tokens.length;
       console.log("tokens calculated in background = " + tokenCount);
-      getActiveTabLocation().then((loc) => {
-        const locationToUse = loc || "Unknown";
-        console.log("location = " + locationToUse);
-        fetch("http://165.82.168.3:8000/write-csv/", {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            "X-API-Key": "dev_key_change_me",
-            "X-From-Extension": "1"
-          },
-          body: JSON.stringify({
-            file_name: "emissions.csv",
-            data: [
-              {
-                tokens: tokenCount,
-                location: locationToUse,
-                date: (/* @__PURE__ */ new Date()).toLocaleDateString("en-US")
-              }
-            ]
-          })
-        }).then(async (res) => {
-          const text = await res.text();
-          if (!res.ok) throw new Error(`HTTP ${res.status}: ${text}`);
-          return JSON.parse(text);
-        }).then((data) => sendResponse({ ok: true, tokenCount, data })).catch((err) => sendResponse({ ok: false, tokenCount, error: err.message }));
-      });
+      console.log("location = " + userLocation);
+      fetch("http://165.82.168.3:8000/write-csv/", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "X-API-Key": "dev_key_change_me",
+          "X-From-Extension": "1"
+        },
+        body: JSON.stringify({
+          file_name: "emissions.csv",
+          data: [
+            {
+              tokens: tokenCount,
+              location: userLocation,
+              date: (/* @__PURE__ */ new Date()).toLocaleDateString("en-US")
+            }
+          ]
+        })
+      }).then(async (res) => {
+        const text = await res.text();
+        if (!res.ok) throw new Error(`HTTP ${res.status}: ${text}`);
+        return JSON.parse(text);
+      }).then((data) => sendResponse({ ok: true, tokenCount, data })).catch((err) => sendResponse({ ok: false, tokenCount, error: err.message }));
       return true;
     }
   }
 });
-async function getActiveTabLocation() {
-  const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
-  if (!tab) return null;
-  try {
-    const response = await chrome.tabs.sendMessage(tab.id, { action: "GET_LOCATION" });
-    return response.error ? null : `${response.lat}, ${response.lng}`;
-  } catch (err) {
-    console.error("Could not reach content script:", err);
-    return null;
-  }
-}
