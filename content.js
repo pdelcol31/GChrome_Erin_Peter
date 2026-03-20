@@ -4,9 +4,12 @@ let streamTimer;
 
 // Keep track of which message elements we've already scraped (a set containing
     // message ids)
-const seenMessages = new Set(); 
+const getStoredIds = () => JSON.parse(localStorage.getItem('seenMessageIds') || '[]');
+const seenMessages = new Set(getStoredIds());
+// stores user location as a string (updates with user)
 let userLocation = "waiting for location...";
 let countyGeoJSON = null;
+let location_data = "waiting for location data ...";
 
 // Load the counties file once when the script starts
 fetch(chrome.runtime.getURL('Pennsylvania_County_Boundaries.geojson'))
@@ -18,7 +21,7 @@ fetch(chrome.runtime.getURL('Pennsylvania_County_Boundaries.geojson'))
     .catch(err => console.error("Failed to load counties.json:", err));
 
 
-// Function to find and store saved chats
+// Function to find and store saved chats based on url changes
 (function() {
     // track current/last url
     let lastUrl = location.href;
@@ -42,21 +45,32 @@ fetch(chrome.runtime.getURL('Pennsylvania_County_Boundaries.geojson'))
         setTimeout(() => {
             //last part (p tags) of a response
             const existing_p_tags = document.querySelectorAll('p[data-is-last-node="true"], p[data-is-last-node=""]');
-            console.log(existing_p_tags);
+            //a corner case
+            const existing_special_p_tags = document.querySelectorAll('p > span');
+            const all_existing_p_tags = [...existing_p_tags, ...existing_special_p_tags];
 
-            existing_p_tags.forEach((p) => {
+            all_existing_p_tags.forEach((p) => {
                 //find the closest larger div class
                 const existing_messageContainer = p.closest('.markdown');
-                //text of the response
-                existing_contents = existing_messageContainer.innerText;
                 //create a message id for the response to store in seenMessages
                 existing_message_id = getMessageId2(existing_messageContainer);
 
-                if(existing_message_id && !seenMessages.has(existing_message_id)){
+                // re-read the latest data from localStorage right before checking
+                // (handles the case where another tab just saved something)
+                const currentStorage = JSON.parse(localStorage.getItem('seenMessageIds') || '[]');
+                if(existing_message_id && !seenMessages.has(existing_message_id) && !currentStorage.includes(existing_message_id)){
                     console.log("existing message id: " + existing_message_id);
-                    // console.log("Existing text!!!!!!!!: " +existing_contents);
-                    //add the message id to seenMessages if not already seen
+                    //add the message id to seenMessages if not already seen and store in local storage
                     seenMessages.add(existing_message_id);
+                    localStorage.setItem('seenMessageIds', JSON.stringify(Array.from(seenMessages)));
+
+                    const contents = existing_messageContainer.innerText;
+                    // Send to background.js
+                    chrome.runtime.sendMessage({ 
+                        action: "COUNT_TOKENS", 
+                        text: contents ,
+                        location: location_data
+                    });
                 }
             });
         }, 5000);
@@ -79,6 +93,7 @@ function getMessageId2(container) {
 
     // choose first 150 chars for the id
     // ignore the total length because it's inconsistent across URLs
+    if(cleanText.length < 150) return cleanText;
     return cleanText.substring(0, 150);
 }
 //create an Id for a chat response - attempt 1
@@ -101,54 +116,68 @@ function getMessageId(container) {
 const observer = new MutationObserver((mutations, obs) => {
     // Reset the timer every time a new "chunk" appears
     clearTimeout(streamTimer);
-
-    // Look for the specific 'p' tag that signals the end of a response
-    const responseAnchors = document.querySelectorAll('p[data-is-last-node="true"], p[data-is-last-node=""]');
     // Check if gpt is still typing
     const isTyping = !!document.querySelector('button[aria-label="Stop generating"]');
-    // Loop through all the tags (e.g. responses) found
-    responseAnchors.forEach((p) => {
-        // Only continue if dones typing
-        if (p && !isTyping){
-            // Navigate up to the main message container
-            const messageContainer = p.closest('.markdown'); 
+    if(!isTyping){
+        // Look for the specific 'p' tag that signals the end of a response
+        const responseAnchors = document.querySelectorAll('p[data-is-last-node="true"], p[data-is-last-node=""]');
+        // corner case
+        // const responseAnchorsCornerCase = document.querySelectorAll('p > span');
 
-            if (messageContainer) {
-                // Wait for text to stop generating
-                 streamTimer = setTimeout(() => {
-                    // Capture the text
-                    const contents = messageContainer.innerText;
-                    // create a message id
-                    const message_id = getMessageId2(messageContainer);
+        //combine all anchors into one array
+        // const allAnchors = [...responseAnchors, ...responseAnchorsCornerCase];
 
-                    // Check if this response has been seen before
-                    if(message_id && !seenMessages.has(message_id)){
-                        console.log("scraped message id: " + message_id);
-                        seenMessages.add(message_id);
-                        // console.log("Scraped Data:", contents);
+        // Loop through all the tags (e.g. responses) found
+        responseAnchors.forEach((p) => {
+            // Only continue if done typing
+            if (p){
+                // Navigate up to the main message container
+                const messageContainer = p.closest('.markdown'); 
 
-                        // Extract lat/lng from userLocation
-                        // const [lat, lng] = userLocation.split(',').map(Number);
-    
-                        // // find the matching county
-                        // const pt = turf.point([lng, lat]); 
-                        // const match = countyGeoJSON.features.find(feature => {
-                        //     return turf.booleanPointInPolygon(pt, feature);
-                        // });
+                if (messageContainer) {
+                    // Wait for text to stop generating
+                    streamTimer = setTimeout(() => {
+                        // Capture the text
+                        const contents = messageContainer.innerText;
+                        // create a message id
+                        const message_id = getMessageId2(messageContainer);
 
-                        // const countyName = match ? match.properties.NAME : "Not Found";
+                        // re-read the latest data from localStorage right before checking
+                        // (handles the case where another tab just saved something)
+                        const currentStorage = JSON.parse(localStorage.getItem('seenMessageIds') || '[]');
 
-                        // Send to background.js
-                        chrome.runtime.sendMessage({ 
-                            action: "COUNT_TOKENS", 
-                            text: contents ,
-                            location: userLocation
-                        });
-                    }
-                }, 5000);
+                        // Check if this response has been seen before
+                        if(message_id && !seenMessages.has(message_id) && !currentStorage.includes(message_id)){
+                            console.log("scraped message id: " + message_id);
+                            seenMessages.add(message_id);
+                            localStorage.setItem('seenMessageIds', JSON.stringify(Array.from(seenMessages)));
+                            console.log("Scraped Data:", contents);
+
+                            // Extract lat/lng from userLocation
+                            // const [lat, lng] = userLocation.split(',').map(Number);
+        
+                            // // find the matching county
+                            // const pt = turf.point([lng, lat]); 
+                            // const match = countyGeoJSON.features.find(feature => {
+                            //     return turf.booleanPointInPolygon(pt, feature);
+                            // });
+
+                            // const countyName = match ? match.properties.NAME : "Not Found";
+
+                            console.log(`Cleaned location data: ${location_data}`);
+
+                            // Send to background.js
+                            chrome.runtime.sendMessage({ 
+                                action: "COUNT_TOKENS", 
+                                text: contents ,
+                                location: location_data
+                            });
+                        }
+                    }, 5000);
+                }
             }
-        }
-    });
+        });
+    }
 });
 
 // Constantly observe webpage
@@ -164,23 +193,47 @@ navigator.geolocation.watchPosition((position) => {
     
     //update the global variable as your specific string format
     userLocation = `${lat}, ${lng}`;
+    getLocation(lat,lng);
+
+    //use BigDataCloud to reverse ip address lookup
+    // fetch(`https://api-bdc.net/data/reverse-geocode?latitude=${lat}&longitude=${lng}&localityLanguage=en&key=bdc_2e1988557119462480d5a30615f64b3d`)
+    //     .then(res => res.json())
+    //     .then((api_response) => {
+    //     // 2. Map only the 3 properties you want to your variable
+    //         location_data = api_response.countryName + ", " + api_response.state + ", " + api_response.city;
+    //     });
 });
 
-//function to get and send user location
-chrome.runtime.onMessage.addListener((request, sender, sendResponse)=> {
-    if (request.action === "GET_LOCATION") {
-        navigator.geolocation.getCurrentPosition((position) => {
-            const lat = position.coords.latitude;
-            const lng = position.coords.longitude;
-            sendResponse({
-                lat: lat,
-                lng: lng
-            })
-        },
-        (error) => {
-        sendResponse({ error: error.message });
-        }
-      );
+async function getLocation(lat, lng) {
+    try {
+        const response = await fetch(`https://api-bdc.net/data/reverse-geocode?latitude=${lat}&longitude=${lng}&localityLanguage=en&key=bdc_2e1988557119462480d5a30615f64b3d`);
+        
+        // 3. Pause again until the JSON is parsed
+        const api_response = await response.json();
+
+        // 4. Now this line WAITs until the data is actually ready
+        location_data = api_response.countryName + ", " + api_response.principalSubdivision + ", " + api_response.city;
+        console.log("CITY" + api_response.city);
+    } catch (error) {
+        console.error("The API call failed:", error);
     }
-    return true; //keep channel open
-});
+}
+
+//function to get and send user location
+// chrome.runtime.onMessage.addListener((request, sender, sendResponse)=> {
+//     if (request.action === "GET_LOCATION") {
+//         navigator.geolocation.getCurrentPosition((position) => {
+//             const lat = position.coords.latitude;
+//             const lng = position.coords.longitude;
+//             sendResponse({
+//                 lat: lat,
+//                 lng: lng
+//             })
+//         },
+//         (error) => {
+//         sendResponse({ error: error.message });
+//         }
+//       );
+//     }
+//     return true; //keep channel open
+// });
