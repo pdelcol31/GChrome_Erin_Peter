@@ -451,7 +451,8 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
       const tokenCount = tokens.length;
       console.log("tokens calculated in background = " + tokenCount);
       console.log("location = " + userLocation);
-      fetch("http://165.82.168.3:8000/write-csv/", {
+      console.log("Sending data to gptfootprint.cs");
+      fetch("http://gptfootprint.cs.haverford.edu/api/write-csv/", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",

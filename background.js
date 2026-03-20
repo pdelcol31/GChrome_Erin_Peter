@@ -4,12 +4,13 @@
 console.log("background service worker loaded");
 import { encodingForModel } from "js-tiktoken";
 
+//receive data from content.js and send to server
 chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
 
   if (request?.action === "COUNT_TOKENS") {
     //get responses and location
     let responses = request.text;
-    let userLocation = request.location;
+    let userLocation = request.location; //"country, state, city"
     
     if(responses == null || responses.length == 0){
       //No response found
@@ -25,9 +26,10 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
       const tokenCount = tokens.length;
       //display tokens
       console.log("tokens calculated in background = " + tokenCount);
-      console.log("location = " + userLocation)
+      console.log("location = " + userLocation);
         
-      fetch("http://165.82.168.3:8000/write-csv/", {
+      console.log("Sending data to gptfootprint.cs");
+      fetch("http://gptfootprint.cs.haverford.edu/api/write-csv/", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -216,19 +218,19 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
 
 // });
 
-// Function to get user location from content.js
-async function getActiveTabLocation() {
-  const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
-  if (!tab) return null;
+// // Function to get user location from content.js
+// async function getActiveTabLocation() {
+//   const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+//   if (!tab) return null;
 
-  try {
-    const response = await chrome.tabs.sendMessage(tab.id, { action: "GET_LOCATION" });
-    return response.error ? null : `${response.lat}, ${response.lng}`;
-  } catch (err) {
-    console.error("Could not reach content script:", err);
-    return null;
-  }
-}
+//   try {
+//     const response = await chrome.tabs.sendMessage(tab.id, { action: "GET_LOCATION" });
+//     return response.error ? null : `${response.lat}, ${response.lng}`;
+//   } catch (err) {
+//     console.error("Could not reach content script:", err);
+//     return null;
+//   }
+// }
 // Handler to receive Models from content Script
 // chrome.runtime.onMessage.addListener((request, sender, sendResponse)=> {
 //   // 1. Filter for the specific message type from Content Script
