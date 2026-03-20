@@ -6,19 +6,20 @@ let streamTimer;
     // message ids)
 const getStoredIds = () => JSON.parse(localStorage.getItem('seenMessageIds') || '[]');
 const seenMessages = new Set(getStoredIds());
-// stores user location as a string (updates with user)
+// stores user location (lat,long) as a string (updates with user)
 let userLocation = "waiting for location...";
-let countyGeoJSON = null;
+//stores location data as string (country, state, city)
 let location_data = "waiting for location data ...";
+// let countyGeoJSON = null;
 
 // Load the counties file once when the script starts
-fetch(chrome.runtime.getURL('Pennsylvania_County_Boundaries.geojson'))
-    .then(response => response.json())
-    .then(json => {
-        countyGeoJSON = json;
-        console.log("County boundaries loaded from directory!");
-    })
-    .catch(err => console.error("Failed to load counties.json:", err));
+// fetch(chrome.runtime.getURL('Pennsylvania_County_Boundaries.geojson'))
+//     .then(response => response.json())
+//     .then(json => {
+//         countyGeoJSON = json;
+//         console.log("County boundaries loaded from directory!");
+//     })
+//     .catch(err => console.error("Failed to load counties.json:", err));
 
 
 // Function to find and store saved chats based on url changes
@@ -49,30 +50,33 @@ fetch(chrome.runtime.getURL('Pennsylvania_County_Boundaries.geojson'))
             const existing_special_p_tags = document.querySelectorAll('p > span');
             const all_existing_p_tags = [...existing_p_tags, ...existing_special_p_tags];
 
-            all_existing_p_tags.forEach((p) => {
-                //find the closest larger div class
-                const existing_messageContainer = p.closest('.markdown');
-                //create a message id for the response to store in seenMessages
-                existing_message_id = getMessageId2(existing_messageContainer);
+            const isTyping = !!document.querySelector('button[aria-label="Stop generating"]');
+            if(!isTyping){
+                all_existing_p_tags.forEach((p) => {
+                    //find the closest larger div class
+                    const existing_messageContainer = p.closest('.markdown');
+                    //create a message id for the response to store in seenMessages
+                    existing_message_id = getMessageId2(existing_messageContainer);
 
-                // re-read the latest data from localStorage right before checking
-                // (handles the case where another tab just saved something)
-                const currentStorage = JSON.parse(localStorage.getItem('seenMessageIds') || '[]');
-                if(existing_message_id && !seenMessages.has(existing_message_id) && !currentStorage.includes(existing_message_id)){
-                    console.log("existing message id: " + existing_message_id);
-                    //add the message id to seenMessages if not already seen and store in local storage
-                    seenMessages.add(existing_message_id);
-                    localStorage.setItem('seenMessageIds', JSON.stringify(Array.from(seenMessages)));
+                    // re-read the latest data from localStorage right before checking
+                    // (handles the case where another tab just saved something)
+                    const currentStorage = JSON.parse(localStorage.getItem('seenMessageIds') || '[]');
+                    if(existing_message_id && !seenMessages.has(existing_message_id) && !currentStorage.includes(existing_message_id)){
+                        console.log("existing message id: " + existing_message_id);
+                        //add the message id to seenMessages if not already seen and store in local storage
+                        seenMessages.add(existing_message_id);
+                        localStorage.setItem('seenMessageIds', JSON.stringify(Array.from(seenMessages)));
 
-                    const contents = existing_messageContainer.innerText;
-                    // Send to background.js
-                    chrome.runtime.sendMessage({ 
-                        action: "COUNT_TOKENS", 
-                        text: contents ,
-                        location: location_data
-                    });
-                }
-            });
+                        const contents = existing_messageContainer.innerText;
+                        // Send to background.js
+                        chrome.runtime.sendMessage({ 
+                            action: "COUNT_TOKENS", 
+                            text: contents ,
+                            location: location_data
+                        });
+                    }
+                });
+            }
         }, 5000);
     };
 
@@ -121,12 +125,10 @@ const observer = new MutationObserver((mutations, obs) => {
     if(!isTyping){
         // Look for the specific 'p' tag that signals the end of a response
         const responseAnchors = document.querySelectorAll('p[data-is-last-node="true"], p[data-is-last-node=""]');
-        // corner case
-        // const responseAnchorsCornerCase = document.querySelectorAll('p > span');
-
-        //combine all anchors into one array
-        // const allAnchors = [...responseAnchors, ...responseAnchorsCornerCase];
-
+        const markdown_classes = document.querySelectorAll('div.markdown.prose');
+        markdown_classes.forEach((m) => {
+            console.log("markdown text = " + m.innerText);
+        });
         // Loop through all the tags (e.g. responses) found
         responseAnchors.forEach((p) => {
             // Only continue if done typing
@@ -151,7 +153,7 @@ const observer = new MutationObserver((mutations, obs) => {
                             console.log("scraped message id: " + message_id);
                             seenMessages.add(message_id);
                             localStorage.setItem('seenMessageIds', JSON.stringify(Array.from(seenMessages)));
-                            console.log("Scraped Data:", contents);
+                            // console.log("Scraped Data:", contents);
 
                             // Extract lat/lng from userLocation
                             // const [lat, lng] = userLocation.split(',').map(Number);
@@ -193,47 +195,23 @@ navigator.geolocation.watchPosition((position) => {
     
     //update the global variable as your specific string format
     userLocation = `${lat}, ${lng}`;
+    //get location data (city, state, country)
     getLocation(lat,lng);
-
-    //use BigDataCloud to reverse ip address lookup
-    // fetch(`https://api-bdc.net/data/reverse-geocode?latitude=${lat}&longitude=${lng}&localityLanguage=en&key=bdc_2e1988557119462480d5a30615f64b3d`)
-    //     .then(res => res.json())
-    //     .then((api_response) => {
-    //     // 2. Map only the 3 properties you want to your variable
-    //         location_data = api_response.countryName + ", " + api_response.state + ", " + api_response.city;
-    //     });
 });
 
+//get the coarse location data - city, state, country
+//trying async / wait methods but need to research this more (seems to be working)
 async function getLocation(lat, lng) {
     try {
+        //use BigDataCloud API for reverse geocoding, key = bdc_2e1988557119462480d5a30615f64b3d
         const response = await fetch(`https://api-bdc.net/data/reverse-geocode?latitude=${lat}&longitude=${lng}&localityLanguage=en&key=bdc_2e1988557119462480d5a30615f64b3d`);
         
-        // 3. Pause again until the JSON is parsed
+        // pause again until the JSON is parsed
         const api_response = await response.json();
 
-        // 4. Now this line WAITs until the data is actually ready
+        //updated location_data with country, state, city
         location_data = api_response.countryName + ", " + api_response.principalSubdivision + ", " + api_response.city;
-        console.log("CITY" + api_response.city);
     } catch (error) {
         console.error("The API call failed:", error);
     }
 }
-
-//function to get and send user location
-// chrome.runtime.onMessage.addListener((request, sender, sendResponse)=> {
-//     if (request.action === "GET_LOCATION") {
-//         navigator.geolocation.getCurrentPosition((position) => {
-//             const lat = position.coords.latitude;
-//             const lng = position.coords.longitude;
-//             sendResponse({
-//                 lat: lat,
-//                 lng: lng
-//             })
-//         },
-//         (error) => {
-//         sendResponse({ error: error.message });
-//         }
-//       );
-//     }
-//     return true; //keep channel open
-// });
