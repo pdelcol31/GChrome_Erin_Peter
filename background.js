@@ -37,7 +37,7 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
       console.log("tokens calculated in background = " + tokenCount);
       console.log("location = " + userLocation);
 
-      const existingUserId = await getStoredUserId();
+      const existingUserId = getStoredUserId();
       console.log("stored user_id =", existingUserId);
 
       const payload = {
