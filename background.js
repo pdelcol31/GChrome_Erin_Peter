@@ -4,6 +4,15 @@
 console.log("background service worker loaded");
 import { encodingForModel } from "js-tiktoken";
 
+async function getStoredUserId() {
+  const result = await chrome.storage.local.get(["user_id"]);
+  return result.user_id || null;
+}
+
+async function setStoredUserId(userId) {
+  await chrome.storage.local.set({ user_id: userId });
+}
+
 //receive data from content.js and send to server
 chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
 
@@ -27,6 +36,24 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
       //display tokens
       console.log("tokens calculated in background = " + tokenCount);
       console.log("location = " + userLocation);
+
+      const existingUserId = await getStoredUserId();
+      console.log("stored user_id =", existingUserId);
+
+      const payload = {
+          file_name: "emissions.csv",
+          data: [
+            {
+              tokens: tokenCount,
+              location: userLocation,
+              date: new Date().toLocaleDateString("en-US"),
+            },
+          ],
+        };
+
+        if (existingUserId) {
+          payload.user_id = existingUserId;
+        }
         
       console.log("Sending data to gptfootprint.cs");
       fetch("http://gptfootprint.cs.haverford.edu/api/write-csv/", {
@@ -36,24 +63,21 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
           "X-API-Key": "dev_key_change_me",
           "X-From-Extension": "1",
         },
-        body: JSON.stringify({
-          file_name: "emissions.csv",
-          data: [
-            {
-              tokens: tokenCount,
-              location: userLocation,
-              date: new Date().toLocaleDateString("en-US"),
-            },
-          ],
-        }),
+        body: JSON.stringify(payload),
       })
       .then(async (res) => {
         const text = await res.text();
         if (!res.ok) throw new Error(`HTTP ${res.status}: ${text}`);
         return JSON.parse(text);
       })
-      .then((data) => sendResponse({ ok: true, tokenCount, data }))
-      .catch((err) => sendResponse({ ok: false, tokenCount, error: err.message }));
+      .then(async (data) => {
+       if (data.user_id && !existingUserId) {
+        await setStoredUserId(data.user_id);
+        console.log("Saved user_id:", data.user_id);
+       }
+       sendResponse({ ok: true, tokenCount, data });
+      })
+       .catch((err) => sendResponse({ ok: false, tokenCount, error: err.message }));
       return true;
     }
   }
