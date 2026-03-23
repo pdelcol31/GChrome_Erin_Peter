@@ -7,9 +7,8 @@
     "service_worker": "dist/background.bundle.js",
     "type": "module" 
   },
-  "permissions": ["activeTab", "scripting", "geolocation"],
-  "host_permissions": ["http://127.0.0.1:8000/*",
-  "http://localhost:8000/*"],
+  "permissions": ["activeTab", "scripting", "geolocation", "storage"],
+  "host_permissions": ["http://gptfootprint.cs.haverford.edu/*"],
   "content_scripts": [{
     "matches": ["https://chatgpt.com/*"],
     "js": ["content.js"]
