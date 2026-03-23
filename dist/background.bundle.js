@@ -438,6 +438,13 @@ function encodingForModel(model, extendSpecialTokens) {
 
 // background.js
 console.log("background service worker loaded");
+async function getStoredUserId() {
+  const result = await chrome.storage.local.get(["user_id"]);
+  return result.user_id || null;
+}
+async function setStoredUserId(userId) {
+  await chrome.storage.local.set({ user_id: userId });
+}
 chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
   if (request?.action === "COUNT_TOKENS") {
     let responses = request.text;
@@ -451,6 +458,21 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
       const tokenCount = tokens.length;
       console.log("tokens calculated in background = " + tokenCount);
       console.log("location = " + userLocation);
+      const existingUserId = getStoredUserId();
+      console.log("stored user_id =", existingUserId);
+      const payload = {
+        file_name: "emissions.csv",
+        data: [
+          {
+            tokens: tokenCount,
+            location: userLocation,
+            date: (/* @__PURE__ */ new Date()).toLocaleDateString("en-US")
+          }
+        ]
+      };
+      if (existingUserId) {
+        payload.user_id = existingUserId;
+      }
       console.log("Sending data to gptfootprint.cs");
       fetch("http://gptfootprint.cs.haverford.edu/api/write-csv/", {
         method: "POST",
@@ -459,21 +481,18 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
           "X-API-Key": "dev_key_change_me",
           "X-From-Extension": "1"
         },
-        body: JSON.stringify({
-          file_name: "emissions.csv",
-          data: [
-            {
-              tokens: tokenCount,
-              location: userLocation,
-              date: (/* @__PURE__ */ new Date()).toLocaleDateString("en-US")
-            }
-          ]
-        })
+        body: JSON.stringify(payload)
       }).then(async (res) => {
         const text = await res.text();
         if (!res.ok) throw new Error(`HTTP ${res.status}: ${text}`);
         return JSON.parse(text);
-      }).then((data) => sendResponse({ ok: true, tokenCount, data })).catch((err) => sendResponse({ ok: false, tokenCount, error: err.message }));
+      }).then(async (data) => {
+        if (data.user_id && !existingUserId) {
+          await setStoredUserId(data.user_id);
+          console.log("Saved user_id:", data.user_id);
+        }
+        sendResponse({ ok: true, tokenCount, data });
+      }).catch((err) => sendResponse({ ok: false, tokenCount, error: err.message }));
       return true;
     }
   }

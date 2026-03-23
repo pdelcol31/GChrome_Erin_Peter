@@ -125,10 +125,6 @@ const observer = new MutationObserver((mutations, obs) => {
     if(!isTyping){
         // Look for the specific 'p' tag that signals the end of a response
         const responseAnchors = document.querySelectorAll('p[data-is-last-node="true"], p[data-is-last-node=""]');
-        const markdown_classes = document.querySelectorAll('div.markdown.prose');
-        markdown_classes.forEach((m) => {
-            console.log("markdown text = " + m.innerText);
-        });
         // Loop through all the tags (e.g. responses) found
         responseAnchors.forEach((p) => {
             // Only continue if done typing
