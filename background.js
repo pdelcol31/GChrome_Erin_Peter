@@ -28,7 +28,7 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
     }
     else {
       //creating encoder for gpt2 (as of now)
-      const enc = encodingForModel("gpt2");
+      const enc = encodingForModel("gpt-5");
 
       //calculate tokens
       const tokens = enc.encode(responses);
