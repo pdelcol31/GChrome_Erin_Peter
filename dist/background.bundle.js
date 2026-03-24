@@ -453,7 +453,7 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
       console.log("No response found");
       return;
     } else {
-      const enc = encodingForModel("gpt2");
+      const enc = encodingForModel("gpt-5");
       const tokens = enc.encode(responses);
       const tokenCount = tokens.length;
       console.log("tokens calculated in background = " + tokenCount);

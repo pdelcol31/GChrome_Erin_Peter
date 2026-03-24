@@ -85,7 +85,7 @@ let location_data = "waiting for location data ...";
     else window.addEventListener('load', getExistingMessages); //wait for loading
 })();
 
-//create an Id for a chat response - attempt 2
+//create an Id for a chat response 
 function getMessageId2(container) {
     // 1. Normalize the string to a standard form (handles different emoji encodings)
     // 2. Trim trailing/leading spaces
@@ -123,8 +123,17 @@ const observer = new MutationObserver((mutations, obs) => {
     // Check if gpt is still typing
     const isTyping = !!document.querySelector('button[aria-label="Stop generating"]');
     if(!isTyping){
+        //scrape input prompts
+        const inputAnchors = document.querySelectorAll('.user-message-bubble-color');
+        //loop through input prompts
+        if(inputAnchors){
+            inputAnchors.forEach((a) => {
+                console.log(a.innerText);
+            });
+        } 
+        else{console.log("no input prompts found")}; 
         // Look for the specific 'p' tag that signals the end of a response
-        const responseAnchors = document.querySelectorAll('p[data-is-last-node="true"], p[data-is-last-node=""]');
+        const responseAnchors = document.querySelectorAll('p[data-is-last-node="true"], p[data-is-last-node=""]');        
         // Loop through all the tags (e.g. responses) found
         responseAnchors.forEach((p) => {
             // Only continue if done typing
@@ -135,8 +144,6 @@ const observer = new MutationObserver((mutations, obs) => {
                 if (messageContainer) {
                     // Wait for text to stop generating
                     streamTimer = setTimeout(() => {
-                        // Capture the text
-                        const contents = messageContainer.innerText;
                         // create a message id
                         const message_id = getMessageId2(messageContainer);
 
@@ -163,7 +170,8 @@ const observer = new MutationObserver((mutations, obs) => {
                             // const countyName = match ? match.properties.NAME : "Not Found";
 
                             console.log(`Cleaned location data: ${location_data}`);
-
+                            // Capture the text
+                            const contents = messageContainer.innerText;
                             // Send to background.js
                             chrome.runtime.sendMessage({ 
                                 action: "COUNT_TOKENS", 
