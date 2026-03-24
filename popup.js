@@ -7,103 +7,101 @@
 
 //https://dev.to/anilkumarum/3-ways-to-add-npm-package-in-chrome-extension-3e3b
 //https://dev.to/ramunarasinga-11/use-the-tiktoken-package-to-tokenize-text-for-openai-llms-3f34
-import { encodingForModel } from "js-tiktoken";
+// import { encodingForModel } from "js-tiktoken";
 
-let getModel = document.getElementById('getModel');
+// let getModel = document.getElementById('getModel');
 
-let list = document.getElementById('response');
+// let list = document.getElementById('response');
 
 
 // Handler to receive Models from content Script
-chrome.runtime.onMessage.addListener((request, sender, sendResponse)=> {
-    //get responses
-    let responses = request.contents;
+// chrome.runtime.onMessage.addListener((request, sender, sendResponse)=> {
+//     //get responses
+//     let responses = request.contents;
     
-    //display responses in popup
-    if(responses == null || responses.length == 0){
-        //No response found
-        let li = document.createElement('li');
-        li.innerText = "No response Found";
-        list.appendChild(li);
-    }
-    else {
-        console.log("creating encoder");
-        //creating encoder for gpt2 (as of now)
-        const enc = encodingForModel("gpt2");
+//     //display responses in popup
+//     if(responses == null || responses.length == 0){
+//         //No response found
+//         let li = document.createElement('li');
+//         li.innerText = "No response Found";
+//         list.appendChild(li);
+//     }
+//     else {
+//         console.log("creating encoder");
+//         //creating encoder for gpt2 (as of now)
+//         const enc = encodingForModel("gpt2");
          
-        //calculate tokens
-        const tokens = enc.encode(responses);
-        const tokenCount = tokens.length;
-        //display tokens
-        console.log("tokens = " + tokenCount);
-        alert("tokens = " + tokenCount);
+//         //calculate tokens
+//         const tokens = enc.encode(responses);
+//         const tokenCount = tokens.length;
+//         //display tokens
+//         console.log("tokens = " + tokenCount);
+//         alert("tokens = " + tokenCount);
 
-        chrome.runtime.sendMessage({ type: "POST_EMISSION", tokenCount }, (resp) => {
+//         chrome.runtime.sendMessage({ type: "POST_EMISSION", tokenCount }, (resp) => {
 
-            if (chrome.runtime.lastError) {
-                console.error("sendMessage failed:", chrome.runtime.lastError.message);
-                alert("sendMessage failed: " + chrome.runtime.lastError.message);
-                return;
-            }
+//             if (chrome.runtime.lastError) {
+//                 console.error("sendMessage failed:", chrome.runtime.lastError.message);
+//                 alert("sendMessage failed: " + chrome.runtime.lastError.message);
+//                 return;
+//             }
 
-            if (!resp?.ok) {
-              console.error(resp?.error);
-              alert("Failed: " + (resp?.error ?? "unknown error"));
-              return;
-            }
-            console.log(resp.data);
-            alert("Sent!");
-          });
-        //carbonEmission = carbon_Calculator()
+//             if (!resp?.ok) {
+//               console.error(resp?.error);
+//               alert("Failed: " + (resp?.error ?? "unknown error"));
+//               return;
+//             }
+//             console.log(resp.data);
+//             alert("Sent!");
+//           });
+//         //carbonEmission = carbon_Calculator()
 
-        let li = document.createElement('li');
-        li.innerText = responses;
-        list.appendChild(li);
-    }
-});
-/*
-function carbon_Calculator(parameters, tokens){
-    alpha = 1.17 * 10^-6;
-    lambda = -1.12 * 10^-2;
-    beta = 4.05 * 10^-5;
-    powerConsumption = 1.2; // Kw
-    latency = 1 // NEED TO UPDATE just a Placeholder
+//         let li = document.createElement('li');
+//         li.innerText = responses;
+//         list.appendChild(li);
+//     }
+// });
 
-    //
-    E_GPU = tokens * alpha * e^(beta * batch)* parameters + lambda;
 
-    //
-    E_Server_per_GPU = latency * powerConsumption * (GPU/NumGPU) * (1/batch);
+document.addEventListener('DOMContentLoaded', function() {
+    const userDiv = document.getElementById('userFootprint');
+    const button = document.getElementById('gptFootprintButton');
 
-    //
+    // Example: Update the text immediately on load
+    //I think we can mess with this to update with an incoming message somehow?
+    userDiv.textContent = "Welcome to GPT-Footprint!";
 
-    return;
-}*/
-
-getModel.addEventListener("click", async () => {
-    chrome.runtime.sendMessage({event: 'onstart' })
-
-    let [tab] = await chrome.tabs.query({active:
-    true, currentWindow: true});
-
-    chrome.scripting.executeScript({
-        target: {tabId: tab.id},
-        func:   scrapeModelResponse,
+    button.addEventListener('click', function() {
+        chrome.tabs.create({ url: 'http://gptfootprint.cs.haverford.edu/' });
     });
-})
+});
 
-function scrapeModelResponse(){
-    console.log("scrapeModelResponse running");
-    
-    const response = document.querySelectorAll("p");
 
-    const contents = Array.from(response)
-        .map(p => p.textContent)
-        .join(" ");
+// getModel.addEventListener("click", async () => {
+
+//     chrome.runtime.sendMessage({event: 'onstart' })
+
+//     let [tab] = await chrome.tabs.query({active:
+//     true, currentWindow: true});
+
+//     chrome.scripting.executeScript({
+//         target: {tabId: tab.id},
+//         func:   scrapeModelResponse,
+//     });
+// })
+
+// function scrapeModelResponse(){
+//     console.log("scrapeModelResponse running");
     
-    chrome.runtime.sendMessage({event: 'onstop' })
-    chrome.runtime.sendMessage({contents});
-}
+//     const response = document.querySelectorAll("p");
+
+//     const contents = Array.from(response)
+//         .map(p => p.textContent)
+//         .join(" ");
+    
+//     chrome.runtime.sendMessage({event: 'onstop' })
+//     chrome.runtime.sendMessage({contents});
+// }
 
 
 

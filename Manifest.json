@@ -1,8 +1,11 @@
 {
-  "name": "Chat chrome extension",
+  "name": "GPT-Footprint",
   "description": "Tokenize ChatGPT for inputs",
   "version": "1.0",
   "manifest_version": 3,
+  "action": {
+    "default_popup": "popup.html"
+  },
   "background":{
     "service_worker": "dist/background.bundle.js",
     "type": "module" 
