@@ -63,13 +63,16 @@
 // });
 
 
-document.addEventListener('DOMContentLoaded', function() {
+document.addEventListener("DOMContentLoaded", async ()=> {
     const userDiv = document.getElementById('userFootprint');
     const button = document.getElementById('gptFootprintButton');
 
     // Example: Update the text immediately on load
     //I think we can mess with this to update with an incoming message somehow?
-    userDiv.textContent = "Welcome to GPT-Footprint! \n\n Kwh: C02eq: Water:";
+    const result = await chrome.storage.local.get(["user_data"]);
+    const userData = result.user_data || "Your Data will update as you use the extension";
+
+    document.getElementById("userdata").textContent = userData;
 
     button.addEventListener('click', function() {
         chrome.tabs.create({ url: 'http://gptfootprint.cs.haverford.edu/' });

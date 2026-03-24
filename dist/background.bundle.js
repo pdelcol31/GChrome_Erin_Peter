@@ -490,6 +490,8 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
           return JSON.parse(text);
         }).then(async (data) => {
           console.log("server response data =", data);
+          await chrome.storage.local.set({ user_data: data.user_data });
+          console.log("Saved user_data:", data.user_data);
           if (data.request_id && !existingUserId) {
             await setStoredUserId(data.request_id);
             console.log("Saved user_id:", data.request_id);
