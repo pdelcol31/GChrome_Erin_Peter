@@ -13,6 +13,15 @@ async function setStoredUserId(userId) {
   await chrome.storage.local.set({ user_id: userId });
 }
 
+async function getStoredUserData() {
+  const result = await chrome.storage.local.get(["user_data"]);
+  return result.user_data || null;
+}
+
+async function setStoredUserData(userData) {
+  await chrome.storage.local.set({ user_data: userData });
+}
+
 //receive data from content.js and send to server
 chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
 
@@ -76,15 +85,18 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
           })
           .then(async (data) => {
             console.log("server response data =", data);
-          
+
+            await chrome.storage.local.set({ user_data: data.user_data });
+            console.log("Saved user_data:", data.user_data);
+              
             if (data.request_id && !existingUserId) {
               await setStoredUserId(data.request_id);
               console.log("Saved user_id:", data.request_id);
+
           
               const check = await chrome.storage.local.get(["requst_id"]);
               console.log("storage after save =", check);
             }
-          
             sendResponse({ ok: true, tokenCount, data });
           })
           .catch((err) =>
