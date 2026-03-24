@@ -69,11 +69,12 @@ document.addEventListener('DOMContentLoaded', function() {
 
     // Example: Update the text immediately on load
     //I think we can mess with this to update with an incoming message somehow?
-    userDiv.textContent = "Welcome to GPT-Footprint!";
+    userDiv.textContent = "Welcome to GPT-Footprint! \n\n Kwh: C02eq: Water:";
 
     button.addEventListener('click', function() {
         chrome.tabs.create({ url: 'http://gptfootprint.cs.haverford.edu/' });
     });
+
 });
 
 
