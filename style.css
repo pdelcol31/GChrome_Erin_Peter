@@ -6,8 +6,16 @@ body {
     justify-content: center;
 }
 button{
-    width: 100px;
-    height: 20px;
+    width: 300px;
+    padding: 10px 20px;
+    line-height: 1.4;
+}
+#userFootprint {
+    width: 300px;         
+    margin-bottom: 10px;  /* Add space between text and button */
+    font-size: 14px;
+    color: white;
+    overflow-wrap: break-word;
 }
 .center{
     text-align: center;
