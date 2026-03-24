@@ -68,6 +68,9 @@ let location_data = "waiting for location data ...";
                         localStorage.setItem('seenMessageIds', JSON.stringify(Array.from(seenMessages)));
 
                         const contents = existing_messageContainer.innerText;
+                        console.log("chrome =", chrome);
+                        console.log("chrome.runtime =", chrome?.runtime);
+                        console.log("chrome.runtime?.id =", chrome?.runtime?.id);
                         // Send to background.js
                         chrome.runtime.sendMessage({ 
                             action: "COUNT_TOKENS", 

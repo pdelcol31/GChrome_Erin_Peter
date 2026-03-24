@@ -27,20 +27,22 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
       return;
     }
     else {
-      //creating encoder for gpt2 (as of now)
-      const enc = encodingForModel("gpt-5");
+      (async () => {
+        // creating encoder
+        const enc = encodingForModel("gpt-5");
 
-      //calculate tokens
-      const tokens = enc.encode(responses);
-      const tokenCount = tokens.length;
-      //display tokens
-      console.log("tokens calculated in background = " + tokenCount);
-      console.log("location = " + userLocation);
+        // calculate tokens
+        const tokens = enc.encode(responses);
+        const tokenCount = tokens.length;
 
-      const existingUserId = getStoredUserId();
-      console.log("stored user_id =", existingUserId);
+        // display tokens
+        console.log("tokens calculated in background = " + tokenCount);
+        console.log("location = " + userLocation);
 
-      const payload = {
+        const existingUserId = await getStoredUserId();
+        console.log("stored user_id =", existingUserId);
+
+        const payload = {
           file_name: "emissions.csv",
           data: [
             {
@@ -54,30 +56,41 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
         if (existingUserId) {
           payload.user_id = existingUserId;
         }
-        
-      console.log("Sending data to gptfootprint.cs");
-      fetch("http://gptfootprint.cs.haverford.edu/api/write-csv/", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          "X-API-Key": "dev_key_change_me",
-          "X-From-Extension": "1",
-        },
-        body: JSON.stringify(payload),
-      })
-      .then(async (res) => {
-        const text = await res.text();
-        if (!res.ok) throw new Error(`HTTP ${res.status}: ${text}`);
-        return JSON.parse(text);
-      })
-      .then(async (data) => {
-       if (data.user_id && !existingUserId) {
-        await setStoredUserId(data.user_id);
-        console.log("Saved user_id:", data.user_id);
-       }
-       sendResponse({ ok: true, tokenCount, data });
-      })
-       .catch((err) => sendResponse({ ok: false, tokenCount, error: err.message }));
+
+        console.log("Sending data to gptfootprint.cs");
+        console.log("payload =", payload);
+
+        fetch("http://gptfootprint.cs.haverford.edu/api/write-csv/", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "X-API-Key": "dev_key_change_me",
+            "X-From-Extension": "1",
+          },
+          body: JSON.stringify(payload),
+        })
+          .then(async (res) => {
+            const text = await res.text();
+            if (!res.ok) throw new Error(`HTTP ${res.status}: ${text}`);
+            return JSON.parse(text);
+          })
+          .then(async (data) => {
+            console.log("server response data =", data);
+          
+            if (data.request_id && !existingUserId) {
+              await setStoredUserId(data.request_id);
+              console.log("Saved user_id:", data.request_id);
+          
+              const check = await chrome.storage.local.get(["requst_id"]);
+              console.log("storage after save =", check);
+            }
+          
+            sendResponse({ ok: true, tokenCount, data });
+          })
+          .catch((err) =>
+            sendResponse({ ok: false, tokenCount, error: err.message })
+          );
+      })();
       return true;
     }
   }
