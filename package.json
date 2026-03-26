@@ -1,6 +1,8 @@
 {
   "dependencies": {
+    "argon2-browser": "^1.18.0",
     "base64-js": "^1.5.1",
+    "js-sha256": "^0.11.1",
     "js-tiktoken": "^1.0.21"
   },
   "devDependencies": {

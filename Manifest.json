@@ -14,7 +14,7 @@
   "host_permissions": ["http://gptfootprint.cs.haverford.edu/*"],
   "content_scripts": [{
     "matches": ["https://chatgpt.com/*"],
-    "js": ["content.js"]
+    "js": ["dist/content.bundle.js"]
   }],
   "web_accessible_resources": [{
     "resources": ["Pennsylvania_County_Boundaries.geojson"],
