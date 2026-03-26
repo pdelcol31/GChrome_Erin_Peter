@@ -4,8 +4,9 @@
 // console.log("content service worker loaded");
 
 //import necessary libraries
-import { sha256, sha224 } from 'js-sha256';
-
+import { sha256, sha224 } from 'js-sha256'; //hash
+import { point } from '@turf/helpers'; //location
+import { booleanPointInPolygon } from '@turf/boolean-point-in-polygon'
 // Tell the library where esbuild moved the wasm file
 // const wasmPath = chrome.runtime.getURL('dist/argon2.wasm'); 
 
@@ -20,15 +21,28 @@ let userLocation = "waiting for location...";
 //stores location data as string (country, state, city)
 let location_data = "waiting for location data ...";
 // let countyGeoJSON = null;
+let coarseLocation = "waiting for coarse location...";
 
-// Load the counties file once when the script starts
-// fetch(chrome.runtime.getURL('Pennsylvania_County_Boundaries.geojson'))
-//     .then(response => response.json())
-//     .then(json => {
-//         countyGeoJSON = json;
-//         console.log("County boundaries loaded from directory!");
-//     })
-//     .catch(err => console.error("Failed to load counties.json:", err));
+//Load in countries, states, counties json files
+// 1. get the internal URL
+const countriesFileUrl = chrome.runtime.getURL('World_Countries_(Generalized)_2173680399808997149.geojson');
+const statesFileUrl = chrome.runtime.getURL('us-states.json');
+const paCountiesFileUrl = chrome.runtime.getURL('Pennsylvania_County_Boundaries.geojson');
+var countriesGeoJson = null;
+var statesGeoJson = null;
+var paCountiesGeoJson = null;
+
+async function loadSpatialData() {
+    // 2. Fetch and parse the JSON
+    const countriesResponse = await fetch(countriesFileUrl);
+    countriesGeoJson = await countriesResponse.json();
+    const statesResponse = await fetch(statesFileUrl);
+    statesGeoJson = await statesResponse.json();
+    const paCountiesResponse = await fetch(paCountiesFileUrl);
+    paCountiesGeoJson = await paCountiesResponse.json();
+    console.log("All spatial data loaded and ready.");
+}
+loadSpatialData();
 
 
 // Function to find and store saved chats based on url changes
@@ -126,8 +140,6 @@ function getMessageId(container) {
     else{
         return sha256(text.substring(0,50));
     }
-    // const finalHash = sha256(text.substring(0,50));
-    // return finalHash;
 }
 
 const observer = new MutationObserver((mutations, obs) => {
@@ -161,28 +173,18 @@ const observer = new MutationObserver((mutations, obs) => {
                             console.log("scraped message id: " + message_id);
                             seenMessages.add(message_id);
                             localStorage.setItem('seenMessageIds', JSON.stringify(Array.from(seenMessages)));
-
-                            // Extract lat/lng from userLocation
-                            // const [lat, lng] = userLocation.split(',').map(Number);
-        
-                            // // find the matching county
-                            // const pt = turf.point([lng, lat]); 
-                            // const match = countyGeoJSON.features.find(feature => {
-                            //     return turf.booleanPointInPolygon(pt, feature);
-                            // });
-
-                            // const countyName = match ? match.properties.NAME : "Not Found";
-
-                            // console.log(`Cleaned location data: ${location_data}`);
+                            
                             // Capture the text
                             const contents = messageContainer.innerText;
                             console.log("Scraped Data:", contents.substring(0,50));
 
+                            while(coarseLocation == "waiting for coarse location..."){
+                            }
                             // Send to background.js
                             chrome.runtime.sendMessage({ 
                                 action: "COUNT_TOKENS", 
                                 text: contents ,
-                                location: location_data
+                                location: coarseLocation //**change back to location_data if issues */
                             });
                         }
                         else{
@@ -209,10 +211,57 @@ navigator.geolocation.watchPosition((position) => {
     const lng = position.coords.longitude; 
     
     //update the global variable as your specific string format
-    userLocation = `${lat}, ${lng}`;
+    // userLocation = `${lat}, ${lng}`;
+    const userCoords = [lng,lat];
     //get location data (city, state, country)
-    getLocation(lat,lng);
+    getLocation2(userCoords);
 });
+
+//get the coarse location data country, state, county (pa) -- using turf
+async function getLocation2(userCoords) {
+    // PREVENT CRASH: if data isn't loaded yet, exit early
+    if (!countriesGeoJson || !statesGeoJson || !paCountiesGeoJson) {
+        console.log("Spatial data still loading...");
+        return;
+    }
+    const pt = point(userCoords); //  [Lng, Lat]
+    // let tempCoarseLocation = "";
+    console.log(`USER COORDS: ${userCoords}$`);
+
+    //country level
+    const foundCountry = countriesGeoJson.features.find(country => 
+        booleanPointInPolygon(pt, country)
+    );
+    if (!foundCountry){
+        console.log(`No country found for: ${userCoords}`);
+        return ;
+    }
+    coarseLocation = foundCountry.properties["COUNTRY"];
+    //if in USA
+    if (foundCountry.properties["COUNTRY"] == "United States"){
+        //State level
+        const foundState = statesGeoJson.features.find(state => 
+            booleanPointInPolygon(pt, state)
+        );
+        if(!foundState){
+            console.log(`No state found for ${userCoords}`);
+            return ;
+        }
+        coarseLocation += ", " + foundState.properties["name"];
+        //if in PA
+        if(foundState.properties["name"] == "Pennsylvania"){
+            const foundPACounty = paCountiesGeoJson.features.find(county => 
+                booleanPointInPolygon(pt, county)
+            );
+            if(!foundPACounty){
+                console.log(`No county found for ${userCoords}`);
+                return
+            }
+            coarseLocation += ", " + foundPACounty.properties["COUNTY_NAME"];
+        }
+    }
+    console.log(`Coarse Location: ${coarseLocation}`);
+}
 
 //get the coarse location data - city, state, country
 //trying async / wait methods but need to research this more (seems to be working)
