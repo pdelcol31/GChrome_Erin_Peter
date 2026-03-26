@@ -454,7 +454,7 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
       return;
     } else {
       (async () => {
-        const enc = encodingForModel("gpt-5");
+        const enc = encodingForModel("gpt-5-chat-latest");
         const tokens = enc.encode(responses);
         const tokenCount = tokens.length;
         console.log("tokens calculated in background = " + tokenCount);

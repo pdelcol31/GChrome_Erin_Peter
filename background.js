@@ -38,7 +38,7 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
     else {
       (async () => {
         // creating encoder
-        const enc = encodingForModel("gpt-5");
+        const enc = encodingForModel("gpt-5-chat-latest");
 
         // calculate tokens
         const tokens = enc.encode(responses);
