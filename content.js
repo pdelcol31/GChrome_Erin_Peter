@@ -1,3 +1,6 @@
+//Now bundling content.js: use this command after installing npm: 
+// npx esbuild content.js --bundle --outfile=dist/content.bundle.js --platform=browser --format=iife --external:chrome
+
 // console.log("content service worker loaded");
 
 //import necessary libraries
