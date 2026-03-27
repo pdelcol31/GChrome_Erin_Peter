@@ -1081,7 +1081,6 @@
   }
 
   // content.js
-  var streamTimer;
   var getStoredIds = () => JSON.parse(localStorage.getItem("seenMessageIds") || "[]");
   var seenMessages = new Set(getStoredIds());
   var coarseLocation = "waiting for coarse location...";
@@ -1103,47 +1102,47 @@
   loadSpatialData();
   function getMessageId(container) {
     const text = container.innerText.trim();
-    if (text.length < 50) {
+    if (text.length < 150) {
       return (0, import_js_sha256.sha256)(text);
     } else {
-      return (0, import_js_sha256.sha256)(text.substring(0, 50));
+      return (0, import_js_sha256.sha256)(text.substring(0, 150));
     }
   }
   var observer = new MutationObserver((mutations, obs) => {
-    const isTyping = !!document.querySelector('button[aria-label="Stop generating"]');
-    if (!isTyping) {
-      const responseAnchors = document.querySelectorAll('p[data-is-last-node="true"], p[data-is-last-node=""]');
-      responseAnchors.forEach((p) => {
-        if (p) {
-          const messageContainer = p.closest(".markdown");
-          if (messageContainer) {
-            streamTimer = setTimeout(async () => {
-              const message_id = getMessageId(messageContainer);
-              const currentStorage = JSON.parse(localStorage.getItem("seenMessageIds") || "[]");
-              if (message_id && !seenMessages.has(message_id) && !currentStorage.includes(message_id)) {
-                console.log("scraped message id: " + message_id);
-                seenMessages.add(message_id);
-                localStorage.setItem("seenMessageIds", JSON.stringify(Array.from(seenMessages)));
-                const contents = messageContainer.innerText;
-                console.log("Scraped Data:", contents.substring(0, 50));
-                while (coarseLocation == "waiting for coarse location...") {
-                }
-                chrome.runtime.sendMessage({
-                  action: "COUNT_TOKENS",
-                  text: contents,
-                  location: coarseLocation
-                  //**change back to location_data if issues */
-                });
-              } else {
-                console.log("existing message id: " + message_id);
-                const contents = messageContainer.innerText;
-                console.log("existing Data:", contents.substring(0, 50));
-              }
-            }, 5e3);
-          }
+    const responseAnchors = document.querySelectorAll('p[data-is-last-node="true"], p[data-is-last-node=""]');
+    responseAnchors.forEach((p) => {
+      if (p) {
+        const messageContainer = p.closest(".markdown");
+        if (messageContainer) {
+          if (messageContainer._timer) clearTimeout(messageContainer._timer);
+          messageContainer._timer = setTimeout(async () => {
+            while (coarseLocation == "waiting for coarse location...") {
+              await new Promise((resolve) => setTimeout(resolve, 500));
+            }
+            ;
+            while (!!document.querySelector('button[aria-label="Stop generating"]')) {
+              await new Promise((resolve) => setTimeout(resolve, 1e3));
+            }
+            const messageID = getMessageId(messageContainer);
+            const currentStorage = JSON.parse(localStorage.getItem("seenMessageIds") || "[]");
+            if (messageID && !seenMessages.has(messageID) && !currentStorage.includes(messageID)) {
+              seenMessages.add(messageID);
+              localStorage.setItem("seenMessageIds", JSON.stringify(Array.from(seenMessages)));
+              const contents = messageContainer.innerText;
+              console.log("Scraped Data:", contents);
+              chrome.runtime.sendMessage({
+                action: "COUNT_TOKENS",
+                text: contents,
+                location: coarseLocation
+              });
+            } else {
+              const contents = messageContainer.innerText;
+              console.log("existing Data:", contents.substring(0, 150));
+            }
+          }, 5e3);
         }
-      });
-    }
+      }
+    });
   });
   observer.observe(document.body, {
     childList: true,
@@ -1161,7 +1160,6 @@
       return;
     }
     const pt = point(userCoords);
-    console.log(`USER COORDS: ${userCoords}$`);
     const foundCountry = countriesGeoJson.features.find(
       (country) => booleanPointInPolygon(pt, country)
     );
