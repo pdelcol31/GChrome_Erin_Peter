@@ -3,19 +3,17 @@
 // users' coarse locations, and send the text content to background.js. To perform
 // necessary functionality, this file is bundled with imported libraries into 
 // dist/content.bundle.js (which is the file included in Manifest.json). If making 
-// edits to this file, make sure to use the command below to bundle to see changes 
-// in the chrome extension. */
+// edits to this file, make sure to use the command below to bundle in order to see 
+// changes in the chrome extension. */
 
-//** Now bundling content.js. Use this command after installing npm: 
+//** Use this command after installing npm: 
 // npx esbuild content.js --bundle --outfile=dist/content.bundle.js --platform=browser --format=iife --external:chrome */
 
 
 //import necessary libraries
 import { sha256 } from 'js-sha256'; //hash code algorithm
 import { point } from '@turf/helpers'; //spatial library
-import { booleanPointInPolygon } from '@turf/boolean-point-in-polygon'
-
-let streamTimer;
+import { booleanPointInPolygon } from '@turf/boolean-point-in-polygon' //spatial library
 
 // Keep track of which message elements we've already scraped (a set containing
     // message ids)
@@ -34,7 +32,7 @@ const paCountiesFileUrl = chrome.runtime.getURL('Pennsylvania_County_Boundaries.
 var countriesGeoJson = null;
 var statesGeoJson = null;
 var paCountiesGeoJson = null;
-//load spatial data
+// 3. load spatial data
 async function loadSpatialData() {
     const countriesResponse = await fetch(countriesFileUrl);
     countriesGeoJson = await countriesResponse.json();
@@ -46,121 +44,38 @@ async function loadSpatialData() {
 }
 loadSpatialData();
 
-
-// Function to find and store saved chats based on url changes
-// (function() {
-//     // track current/last url
-//     let lastUrl = location.href;
-
-//     // Setup the listener for URL change
-//     const observer = new MutationObserver(() => {
-//         const url = location.href;
-//         if (url !== lastUrl) {
-//             lastUrl = url;
-//             console.log("URL Changed to:", url);
-//             getExistingMessages();
-//         }
-//     });
-
-//     // Start watching the html 'body' for any changes (which happens during navigation)
-//     observer.observe(document.body, { subtree: true, childList: true });
-
-//     //scan for existingMessages in the current html page (e.g. saved chats)
-//     const getExistingMessages = () => {
-//         //wait for page to load (5 seconds)
-//         setTimeout(() => {
-//             //last part (p tags) of a response
-//             const existing_p_tags = document.querySelectorAll('p[data-is-last-node="true"], p[data-is-last-node=""]');
-//             //a corner case
-//             const existing_special_p_tags = document.querySelectorAll('p > span');
-//             const all_existing_p_tags = [...existing_p_tags, ...existing_special_p_tags];
-
-//             const isTyping = !!document.querySelector('button[aria-label="Stop generating"]');
-//             if(!isTyping){
-//                 all_existing_p_tags.forEach((p) => {
-//                     console.log("Found existing p tag");
-//                     //find the closest larger div class
-//                     const existing_messageContainer = p.closest('.markdown');
-//                     //create a message id for the response to store in seenMessages
-//                     existing_message_id = getMessageId(existing_messageContainer);
-//                     console.log("Created message id:" + existing_message_id);
-//                     // re-read the latest data from localStorage right before checking
-//                     // (handles the case where another tab just saved something)
-//                     const currentStorage = JSON.parse(localStorage.getItem('seenMessageIds') || '[]');
-//                     if(existing_message_id && !seenMessages.has(existing_message_id) && !currentStorage.includes(existing_message_id)){
-//                         console.log("existing message id: " + existing_message_id);
-//                         //add the message id to seenMessages if not already seen and store in local storage
-//                         seenMessages.add(existing_message_id);
-//                         localStorage.setItem('seenMessageIds', JSON.stringify(Array.from(seenMessages)));
-
-//                         const contents = existing_messageContainer.innerText;
-//                         console.log("existing message: " + contents.substring(0,150));
-//                         console.log("chrome =", chrome);
-//                         console.log("chrome.runtime =", chrome?.runtime);
-//                         console.log("chrome.runtime?.id =", chrome?.runtime?.id);
-//                         // Send to background.js
-//                         chrome.runtime.sendMessage({ 
-//                             action: "COUNT_TOKENS", 
-//                             text: contents ,
-//                             location: location_data
-//                         });
-//                     }
-//                 });
-//             }
-//         }, 5000);
-//     };
-
-//     // Run once on initial url load
-//     if (document.readyState === 'complete') getExistingMessages();
-//     else window.addEventListener('load', getExistingMessages); //wait for loading
-// })();
-
-//create an Id for a chat response 
-// function getMessageId2(container) {
-//     // 1. Normalize the string to a standard form (handles different emoji encodings)
-//     // 2. Trim trailing/leading spaces
-//     // 3. Replace all "runs" of whitespace/newlines with a single space
-//     const cleanText = container.innerText
-//         .normalize('NFC')
-//         .trim()
-//         .replace(/\s+/g, ' '); 
-
-//     // choose first 150 chars for the id
-//     // ignore the total length because it's inconsistent across URLs
-//     if(cleanText.length < 150) return cleanText;
-//     return cleanText.substring(0, 150);
-// }
-
 //create an Id for a chat response using SHA-256 hashing
 function getMessageId(container) {
     //trims away empty space or extra newlines at the start and end of text
     const text = container.innerText.trim();
 
     //using SHA256 hashing
-    if(text.length < 150){
+    if(text.length < 175){
         return sha256(text);
     }
     else{
-        return sha256(text.substring(0,150));
+        return sha256(text.substring(0,175));
     }
 }
 
+// main scraping function
 const observer = new MutationObserver((mutations, obs) => {
     // Look for the specific 'p' tag that signals the end of a response
-    const responseAnchors = document.querySelectorAll('p[data-is-last-node="true"], p[data-is-last-node=""]');        
-        // Loop through all the tags (e.g. responses) found
+    const responseAnchors = document.querySelectorAll('p[data-is-last-node="true"], p[data-is-last-node=""]');   
+    // const responseAnchors = document.querySelectorAll('p');     
+    // Loop through all the tags (e.g. responses) found
     responseAnchors.forEach((p) => {
         if (p){
-                // Navigate up to the main message container
+            // Navigate up to the main message container
             const messageContainer = p.closest('.markdown'); 
 
             if (messageContainer) {
-                // 1. CLEAR the timer for THIS SPECIFIC message container only
+                // clean the timer for this specific message container
                 if (messageContainer._timer) clearTimeout(messageContainer._timer);
 
-                // 2. SET a new timer on THIS SPECIFIC message container
+                // set a new timer on this specific message container
                 messageContainer._timer = setTimeout(async () => {
-                    //wait for coarse location to be determined
+                    //wait for coarse location to load
                     while(coarseLocation == "waiting for coarse location..."){
                         await new Promise(resolve => setTimeout(resolve, 500)); 
                     };
@@ -168,39 +83,38 @@ const observer = new MutationObserver((mutations, obs) => {
                     while (!!document.querySelector('button[aria-label="Stop generating"]')) {
                         await new Promise(resolve => setTimeout(resolve, 1000)); // Check every 1s
                     }
-                        // create a message id
+                    // create a message id
                     const messageID = getMessageId(messageContainer);
 
-                        // re-read the latest data from localStorage right before checking
-                        // (handles the case where another tab just saved something)
+                    // re-read the latest data from localStorage right before 
+                    // checking if seen before
                     const currentStorage = JSON.parse(localStorage.getItem('seenMessageIds') || '[]');
 
-                        // Check if this response has been seen before
+                    // Check if this response has been seen before
                     if(messageID && !seenMessages.has(messageID) && !currentStorage.includes(messageID)){
-                            //store new messageID
+                        //store new messageID
                         seenMessages.add(messageID);
                         localStorage.setItem('seenMessageIds', JSON.stringify(Array.from(seenMessages)));
                             
-                            // Capture the text
+                        // Capture the text
                         const contents = messageContainer.innerText;
                         console.log("Scraped Data:", contents);
 
-                            // Send text content and location to background.js
+                        // Send text content and location to background.js
                         chrome.runtime.sendMessage({ 
                             action: "COUNT_TOKENS", 
                             text: contents ,
                             location: coarseLocation
                         });
                     }
-                    else{
+                    else{ // if response already seen
                         const contents = messageContainer.innerText;
-                        console.log("existing Data:", contents.substring(0,150));
+                        console.log("existing Data:", contents.substring(0,175));
                     }
                 }, 5000);
             }
         }
     });
-    // }
 });
 
 // Constantly observe webpage
@@ -216,18 +130,19 @@ navigator.geolocation.watchPosition((position) => {
     const lng = position.coords.longitude; 
     
     const userCoords = [lng,lat];
-    //get coarse location data (country, state, county)
+    //get and set coarse location data (country, state, county)
     getLocation2(userCoords);
 });
 
-//get the coarse location data country, state, county (pa) -- using turf
+//get the coarse location data country, state, county (pa) -- using turf and set 
+// courseLocation
 async function getLocation2(userCoords) {
     // prevent crash: if data isn't loaded yet, exit early
     if (!countriesGeoJson || !statesGeoJson || !paCountiesGeoJson) {
         console.log("Spatial data still loading...");
         return;
     }
-    const pt = point(userCoords); //  [Lng, Lat]
+    const pt = point(userCoords); //  userCoords = [Lng, Lat]
 
     //country level
     const foundCountry = countriesGeoJson.features.find(country => 
@@ -239,7 +154,7 @@ async function getLocation2(userCoords) {
     }
     //update coarse location
     coarseLocation = foundCountry.properties["COUNTRY"];
-    //if in USA
+    //if in USA, find state 
     if (foundCountry.properties["COUNTRY"] == "United States"){
         //State level
         const foundState = statesGeoJson.features.find(state => 
@@ -251,7 +166,7 @@ async function getLocation2(userCoords) {
         }
         //update coarseLocation
         coarseLocation += ", " + foundState.properties["name"];
-        //if in PA
+        //if in PA, find county
         if(foundState.properties["name"] == "Pennsylvania"){
             const foundPACounty = paCountiesGeoJson.features.find(county => 
                 booleanPointInPolygon(pt, county)
@@ -264,21 +179,4 @@ async function getLocation2(userCoords) {
         }
     }
     console.log(`Coarse Location: ${coarseLocation}`);
-}
-
-//get the coarse location data - city, state, country
-//trying async / wait methods but need to research this more (seems to be working)
-async function getLocation(lat, lng) {
-    try {
-        //use BigDataCloud API for reverse geocoding, key = bdc_2e1988557119462480d5a30615f64b3d
-        const response = await fetch(`https://api-bdc.net/data/reverse-geocode?latitude=${lat}&longitude=${lng}&localityLanguage=en&key=bdc_2e1988557119462480d5a30615f64b3d`);
-        
-        // pause again until the JSON is parsed
-        const api_response = await response.json();
-
-        //updated location_data with country, state, city
-        location_data = api_response.countryName + ", " + api_response.principalSubdivision + ", " + api_response.city;
-    } catch (error) {
-        console.error("The API call failed:", error);
-    }
 }

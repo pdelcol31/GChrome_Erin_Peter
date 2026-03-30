@@ -1102,10 +1102,10 @@
   loadSpatialData();
   function getMessageId(container) {
     const text = container.innerText.trim();
-    if (text.length < 150) {
+    if (text.length < 175) {
       return (0, import_js_sha256.sha256)(text);
     } else {
-      return (0, import_js_sha256.sha256)(text.substring(0, 150));
+      return (0, import_js_sha256.sha256)(text.substring(0, 175));
     }
   }
   var observer = new MutationObserver((mutations, obs) => {
@@ -1137,7 +1137,7 @@
               });
             } else {
               const contents = messageContainer.innerText;
-              console.log("existing Data:", contents.substring(0, 150));
+              console.log("existing Data:", contents.substring(0, 175));
             }
           }, 5e3);
         }
