@@ -1081,8 +1081,14 @@
   }
 
   // content.js
-  var getStoredIds = () => JSON.parse(localStorage.getItem("seenMessageIds") || "[]");
-  var seenMessages = new Set(getStoredIds());
+  var seenIds = [];
+  chrome.storage.local.get({ seenMessageIds: [] }).then((result) => {
+    seenIds = result.seenMessageIds;
+    observer.observe(document.body, {
+      childList: true,
+      subtree: true
+    });
+  });
   var coarseLocation = "waiting for coarse location...";
   var countriesFileUrl = chrome.runtime.getURL("World_Countries_(Generalized)_2173680399808997149.geojson");
   var statesFileUrl = chrome.runtime.getURL("us-states.json");
@@ -1113,9 +1119,10 @@
     responseAnchors.forEach((p) => {
       if (p) {
         const messageContainer = p.closest(".markdown");
-        if (messageContainer) {
+        if (messageContainer && !messageContainer.dataset.isProcessing) {
           if (messageContainer._timer) clearTimeout(messageContainer._timer);
           messageContainer._timer = setTimeout(async () => {
+            messageContainer.dataset.isProcessing = "true";
             while (coarseLocation == "waiting for coarse location...") {
               await new Promise((resolve) => setTimeout(resolve, 500));
             }
@@ -1124,10 +1131,9 @@
               await new Promise((resolve) => setTimeout(resolve, 1e3));
             }
             const messageID = getMessageId(messageContainer);
-            const currentStorage = JSON.parse(localStorage.getItem("seenMessageIds") || "[]");
-            if (messageID && !seenMessages.has(messageID) && !currentStorage.includes(messageID)) {
-              seenMessages.add(messageID);
-              localStorage.setItem("seenMessageIds", JSON.stringify(Array.from(seenMessages)));
+            if (messageID && !seenIds.includes(messageID)) {
+              seenIds.push(messageID);
+              chrome.storage.local.set({ seenMessageIds: seenIds });
               const contents = messageContainer.innerText;
               console.log("Scraped Data:", contents);
               chrome.runtime.sendMessage({
@@ -1143,10 +1149,6 @@
         }
       }
     });
-  });
-  observer.observe(document.body, {
-    childList: true,
-    subtree: true
   });
   navigator.geolocation.watchPosition((position) => {
     const lat = position.coords.latitude;

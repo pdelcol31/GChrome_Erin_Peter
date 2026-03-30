@@ -17,8 +17,20 @@ import { booleanPointInPolygon } from '@turf/boolean-point-in-polygon' //spatial
 
 // Keep track of which message elements we've already scraped (a set containing
     // message ids)
-const getStoredIds = () => JSON.parse(localStorage.getItem('seenMessageIds') || '[]');
-const seenMessages = new Set(getStoredIds());
+// const getStoredIds = () => JSON.parse(localStorage.getItem('seenMessageIds') || '[]');
+// const seenMessages = new Set(getStoredIds());
+let seenIds = []; // Your "sticky note"
+
+// Fetch once at the very beginning
+chrome.storage.local.get({ seenMessageIds: [] }).then(result => {
+    seenIds = result.seenMessageIds;
+
+    // Constantly observe webpage
+    observer.observe(document.body, {
+        childList: true,
+        subtree: true
+    });
+});
 
 // stores coarse location data of user as string (country, state, county)
 let coarseLocation = "waiting for coarse location...";
@@ -69,12 +81,14 @@ const observer = new MutationObserver((mutations, obs) => {
             // Navigate up to the main message container
             const messageContainer = p.closest('.markdown'); 
 
-            if (messageContainer) {
+            if (messageContainer && !messageContainer.dataset.isProcessing) {
                 // clean the timer for this specific message container
                 if (messageContainer._timer) clearTimeout(messageContainer._timer);
 
                 // set a new timer on this specific message container
                 messageContainer._timer = setTimeout(async () => {
+                    // mark message container as processing
+                    messageContainer.dataset.isProcessing = "true";
                     //wait for coarse location to load
                     while(coarseLocation == "waiting for coarse location..."){
                         await new Promise(resolve => setTimeout(resolve, 500)); 
@@ -88,13 +102,18 @@ const observer = new MutationObserver((mutations, obs) => {
 
                     // re-read the latest data from localStorage right before 
                     // checking if seen before
-                    const currentStorage = JSON.parse(localStorage.getItem('seenMessageIds') || '[]');
+                    // const currentStorage = JSON.parse(localStorage.getItem('seenMessageIds') || '[]');
 
                     // Check if this response has been seen before
-                    if(messageID && !seenMessages.has(messageID) && !currentStorage.includes(messageID)){
+                    // if(messageID && !seenMessages.has(messageID) && !currentStorage.includes(messageID)){
+                    if(messageID && !seenIds.includes(messageID)){
                         //store new messageID
-                        seenMessages.add(messageID);
-                        localStorage.setItem('seenMessageIds', JSON.stringify(Array.from(seenMessages)));
+                        // seenMessages.add(messageID);
+                        // localStorage.setItem('seenMessageIds', JSON.stringify(Array.from(seenMessages)));
+                        // 2. Update the local variable so the NEXT observer run sees it
+                        seenIds.push(messageID);
+                        // 3. Save to permanent storage in the background
+                        chrome.storage.local.set({ seenMessageIds: seenIds });
                             
                         // Capture the text
                         const contents = messageContainer.innerText;
@@ -115,12 +134,6 @@ const observer = new MutationObserver((mutations, obs) => {
             }
         }
     });
-});
-
-// Constantly observe webpage
-observer.observe(document.body, {
-  childList: true,
-  subtree: true
 });
 
 //run when a user's location changes and update global coarseLocation variable
