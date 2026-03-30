@@ -4,18 +4,20 @@ body {
     align-items: center;
     background: #222;
     justify-content: center;
+    color: white;
+    font-size: 14px;
+    overflow-wrap: break-word;
+
 }
 button{
     width: 300px;
-    padding: 10px 20px;
+    margin-top: 10px;  /* Add space between text and button */
+    padding: 10px 15px;
     line-height: 1.4;
-}
-#userFootprint {
-    width: 300px;         
-    margin-bottom: 10px;  /* Add space between text and button */
-    font-size: 14px;
-    color: white;
-    overflow-wrap: break-word;
+    color: red;
+    font-style: normal;
+    font-size: 16px;
+    text-decoration: underline;
 }
 .center{
     text-align: center;
