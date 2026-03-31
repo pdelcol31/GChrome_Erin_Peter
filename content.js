@@ -152,6 +152,7 @@ async function getLocation2(userCoords) {
     );
     if (!foundCountry){
         console.log(`No country found for: ${userCoords}`);
+        coarseLocation = "No country found";
         return ;
     }
     //update coarse location

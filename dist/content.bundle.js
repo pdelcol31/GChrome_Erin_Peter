@@ -1167,6 +1167,7 @@
     );
     if (!foundCountry) {
       console.log(`No country found for: ${userCoords}`);
+      coarseLocation = "No country found";
       return;
     }
     coarseLocation = foundCountry.properties["COUNTRY"];
