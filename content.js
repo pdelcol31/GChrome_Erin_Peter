@@ -17,8 +17,6 @@ import { booleanPointInPolygon } from '@turf/boolean-point-in-polygon' //spatial
 
 // Keep track of which message elements we've already scraped (a set containing
     // message ids)
-// const getStoredIds = () => JSON.parse(localStorage.getItem('seenMessageIds') || '[]');
-// const seenMessages = new Set(getStoredIds());
 let seenIds = []; // Your "sticky note"
 
 // Fetch once at the very beginning
@@ -74,7 +72,6 @@ function getMessageId(container) {
 const observer = new MutationObserver((mutations, obs) => {
     // Look for the specific 'p' tag that signals the end of a response
     const responseAnchors = document.querySelectorAll('p[data-is-last-node="true"], p[data-is-last-node=""]');   
-    // const responseAnchors = document.querySelectorAll('p');     
     // Loop through all the tags (e.g. responses) found
     responseAnchors.forEach((p) => {
         if (p){
@@ -100,19 +97,11 @@ const observer = new MutationObserver((mutations, obs) => {
                     // create a message id
                     const messageID = getMessageId(messageContainer);
 
-                    // re-read the latest data from localStorage right before 
-                    // checking if seen before
-                    // const currentStorage = JSON.parse(localStorage.getItem('seenMessageIds') || '[]');
-
                     // Check if this response has been seen before
-                    // if(messageID && !seenMessages.has(messageID) && !currentStorage.includes(messageID)){
                     if(messageID && !seenIds.includes(messageID)){
-                        //store new messageID
-                        // seenMessages.add(messageID);
-                        // localStorage.setItem('seenMessageIds', JSON.stringify(Array.from(seenMessages)));
-                        // 2. Update the local variable so the NEXT observer run sees it
+                        // update the local variable so the NEXT observer run sees it
                         seenIds.push(messageID);
-                        // 3. Save to permanent storage in the background
+                        // save to permanent storage in the background
                         chrome.storage.local.set({ seenMessageIds: seenIds });
                             
                         // Capture the text
