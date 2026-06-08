@@ -39,7 +39,7 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
   if (request?.action === "COUNT_TOKENS") {
     //get responses and location
     let responses = request.text;
-    let userLocation = request.location; //"country, US state, PA county"
+    let userLocation = request.location; //"country, US state, watershed id"
     
     if(responses == null || responses.length == 0){
       //No response found

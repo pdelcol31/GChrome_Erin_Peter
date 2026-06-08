@@ -17,7 +17,7 @@ import { booleanPointInPolygon } from '@turf/boolean-point-in-polygon' //spatial
 
 // Keep track of which message elements we've already scraped (a set containing
     // message ids)
-let seenIds = []; // Your "sticky note"
+let seenIds = []; 
 
 // Fetch once at the very beginning
 chrome.storage.local.get({ seenMessageIds: [] }).then(result => {
@@ -30,26 +30,39 @@ chrome.storage.local.get({ seenMessageIds: [] }).then(result => {
     });
 });
 
-// stores coarse location data of user as string (country, state, county)
+// stores coarse location data of user as string (country, state, watershed id)
 let coarseLocation = "waiting for coarse location...";
 
 //Load in countries, states, counties json files
 // 1. get the internal URL
+//https://hub.arcgis.com/datasets/esri::world-countries-generalized/about
 const countriesFileUrl = chrome.runtime.getURL('World_Countries_(Generalized)_2173680399808997149.geojson');
+//https://www.kaggle.com/datasets/pompelmo/usa-states-geojson?resource=download
 const statesFileUrl = chrome.runtime.getURL('us-states.json');
-const paCountiesFileUrl = chrome.runtime.getURL('Pennsylvania_County_Boundaries.geojson');
+// https://github.com/wri/Aqueduct40, https://www.wri.org/applications/aqueduct/water-risk-atlas/#/?advanced=false&basemap=hydro&indicator=w_awr_def_tot_cat&lat=30&lng=-80&mapMode=view&month=1&opacity=0.5&ponderation=DEF&predefined=false&projection=absolute&scenario=optimistic&scope=baseline&threshold&timeScale=annual&year=baseline&zoom=3 (edited by Erin)
+const aqueductIdsFileUrl = chrome.runtime.getURL('CanUS_aqueduct_ids.geojson');
+//https://simplemaps.com/gis/country/ca
+const canadaProvincesFileUrl = chrome.runtime.getURL('canada_provinces.json');
+// const paCountiesFileUrl = chrome.runtime.getURL('Pennsylvania_County_Boundaries.geojson');
 // 2. Fetch and parse the JSON
 var countriesGeoJson = null;
 var statesGeoJson = null;
-var paCountiesGeoJson = null;
+var aqueductIdsGeoJson = null;
+var canadaProvincesJson = null;
+// var paCountiesGeoJson = null;
 // 3. load spatial data
 async function loadSpatialData() {
     const countriesResponse = await fetch(countriesFileUrl);
     countriesGeoJson = await countriesResponse.json();
     const statesResponse = await fetch(statesFileUrl);
     statesGeoJson = await statesResponse.json();
-    const paCountiesResponse = await fetch(paCountiesFileUrl);
-    paCountiesGeoJson = await paCountiesResponse.json();
+    const aqueductIdsResponse = await fetch(aqueductIdsFileUrl);
+    aqueductIdsGeoJson = await aqueductIdsResponse.json();
+    const canadaProvincesResponse = await fetch(canadaProvincesFileUrl);
+    canadaProvincesJson = await canadaProvincesResponse.json();
+
+    // const paCountiesResponse = await fetch(paCountiesFileUrl);
+    // paCountiesGeoJson = await paCountiesResponse.json();
     console.log("All spatial data loaded and ready.");
 }
 loadSpatialData();
@@ -132,15 +145,15 @@ navigator.geolocation.watchPosition((position) => {
     const lng = position.coords.longitude; 
     
     const userCoords = [lng,lat];
-    //get and set coarse location data (country, state, county)
+    //get and set coarse location data (country, state, watershed id)
     getLocation2(userCoords);
 });
 
-//get the coarse location data country, state, county (pa) -- using turf and set 
+//get the coarse location data country, state, watershed id (usa) -- using turf and set 
 // courseLocation
 async function getLocation2(userCoords) {
     // prevent crash: if data isn't loaded yet, exit early
-    if (!countriesGeoJson || !statesGeoJson || !paCountiesGeoJson) {
+    if (!countriesGeoJson || !statesGeoJson || !aqueductIdsGeoJson) {
         console.log("Spatial data still loading...");
         return;
     }
@@ -169,17 +182,45 @@ async function getLocation2(userCoords) {
         }
         //update coarseLocation
         coarseLocation += ", " + foundState.properties["name"];
-        //if in PA, find county
-        if(foundState.properties["name"] == "Pennsylvania"){
-            const foundPACounty = paCountiesGeoJson.features.find(county => 
-                booleanPointInPolygon(pt, county)
-            );
-            if(!foundPACounty){
-                console.log(`No county found for ${userCoords}`);
-                return
-            }
-            coarseLocation += ", " + foundPACounty.properties["COUNTY_NAME"];
+    }
+    else if(foundCountry.properties["COUNTRY"] == "Canada"){
+        //province level
+        const foundProvince = canadaProvincesJson.features.find(province => 
+            booleanPointInPolygon(pt, province)
+        );
+        if(!foundProvince){
+            console.log(`No province found for ${userCoords}`);
+            return ;
         }
+        //update coarseLocation
+        coarseLocation += ", " + foundProvince.properties["name"];
+    }
+    else{
+        coarseLocation += ", ";
+    }
+    if (foundCountry.properties["COUNTRY"] == "Canada" | foundCountry.properties["COUNTRY"] == "United States"){
+        //find watershed id for US and Canada
+        const watershedId = aqueductIdsGeoJson.features.find(string_id => 
+            booleanPointInPolygon(pt, string_id)
+        );
+        if(!watershedId){
+            console.log(`No watershed id found for ${userCoords}`);
+            return ;
+        }
+        //update coarseLocation
+        coarseLocation += ", " + watershedId.properties["string_id"];
+      
+        //if in PA, find county
+        // if(foundState.properties["name"] == "Pennsylvania"){
+        //     const foundPACounty = paCountiesGeoJson.features.find(county => 
+        //         booleanPointInPolygon(pt, county)
+        //     );
+        //     if(!foundPACounty){
+        //         console.log(`No county found for ${userCoords}`);
+        //         return
+        //     }
+        //     coarseLocation += ", " + foundPACounty.properties["COUNTY_NAME"];
+        // }
     }
     console.log(`Coarse Location: ${coarseLocation}`);
 }

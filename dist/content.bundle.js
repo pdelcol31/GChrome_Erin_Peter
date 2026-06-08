@@ -1092,17 +1092,21 @@
   var coarseLocation = "waiting for coarse location...";
   var countriesFileUrl = chrome.runtime.getURL("World_Countries_(Generalized)_2173680399808997149.geojson");
   var statesFileUrl = chrome.runtime.getURL("us-states.json");
-  var paCountiesFileUrl = chrome.runtime.getURL("Pennsylvania_County_Boundaries.geojson");
+  var aqueductIdsFileUrl = chrome.runtime.getURL("CanUS_aqueduct_ids.geojson");
+  var canadaProvincesFileUrl = chrome.runtime.getURL("canada_provinces.json");
   var countriesGeoJson = null;
   var statesGeoJson = null;
-  var paCountiesGeoJson = null;
+  var aqueductIdsGeoJson = null;
+  var canadaProvincesJson = null;
   async function loadSpatialData() {
     const countriesResponse = await fetch(countriesFileUrl);
     countriesGeoJson = await countriesResponse.json();
     const statesResponse = await fetch(statesFileUrl);
     statesGeoJson = await statesResponse.json();
-    const paCountiesResponse = await fetch(paCountiesFileUrl);
-    paCountiesGeoJson = await paCountiesResponse.json();
+    const aqueductIdsResponse = await fetch(aqueductIdsFileUrl);
+    aqueductIdsGeoJson = await aqueductIdsResponse.json();
+    const canadaProvincesResponse = await fetch(canadaProvincesFileUrl);
+    canadaProvincesJson = await canadaProvincesResponse.json();
     console.log("All spatial data loaded and ready.");
   }
   loadSpatialData();
@@ -1157,7 +1161,7 @@
     getLocation2(userCoords);
   });
   async function getLocation2(userCoords) {
-    if (!countriesGeoJson || !statesGeoJson || !paCountiesGeoJson) {
+    if (!countriesGeoJson || !statesGeoJson || !aqueductIdsGeoJson) {
       console.log("Spatial data still loading...");
       return;
     }
@@ -1180,16 +1184,27 @@
         return;
       }
       coarseLocation += ", " + foundState.properties["name"];
-      if (foundState.properties["name"] == "Pennsylvania") {
-        const foundPACounty = paCountiesGeoJson.features.find(
-          (county) => booleanPointInPolygon(pt, county)
-        );
-        if (!foundPACounty) {
-          console.log(`No county found for ${userCoords}`);
-          return;
-        }
-        coarseLocation += ", " + foundPACounty.properties["COUNTY_NAME"];
+    } else if (foundCountry.properties["COUNTRY"] == "Canada") {
+      const foundProvince = canadaProvincesJson.features.find(
+        (province) => booleanPointInPolygon(pt, province)
+      );
+      if (!foundProvince) {
+        console.log(`No province found for ${userCoords}`);
+        return;
       }
+      coarseLocation += ", " + foundProvince.properties["name"];
+    } else {
+      coarseLocation += ", ";
+    }
+    if (foundCountry.properties["COUNTRY"] == "Canada" | foundCountry.properties["COUNTRY"] == "United States") {
+      const watershedId = aqueductIdsGeoJson.features.find(
+        (string_id) => booleanPointInPolygon(pt, string_id)
+      );
+      if (!watershedId) {
+        console.log(`No watershed id found for ${userCoords}`);
+        return;
+      }
+      coarseLocation += ", " + watershedId.properties["string_id"];
     }
     console.log(`Coarse Location: ${coarseLocation}`);
   }

@@ -17,7 +17,7 @@
     "js": ["dist/content.bundle.js"]
   }],
   "web_accessible_resources": [{
-    "resources": ["Pennsylvania_County_Boundaries.geojson", "World_Countries_(Generalized)_2173680399808997149.geojson", "us-states.json"],
+    "resources": ["Pennsylvania_County_Boundaries.geojson", "World_Countries_(Generalized)_2173680399808997149.geojson", "us-states.json", "CanUS_aqueduct_ids.geojson", "canada_provinces.json"],
       "matches": ["<all_urls>"]
   }]
 }
