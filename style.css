@@ -36,27 +36,27 @@ button{
 #totTokensButton{
     background-color: rgb(246, 133, 133);
 }
-#avgTokensButton{
+/* #avgTokensButton{
     background-color: rgb(246, 133, 133);
-}
+} */
 #totCarbonButton{
     background-color: rgb(141, 138, 138);
 }
-#avgCarbonButton{
+/* #avgCarbonButton{
     background-color: rgb(141, 138, 138);
-}
-#milesButton{
-    background-color: rgb(141, 138, 138);
-}
+} */
+/* #milesButton{ */
+    /* background-color: rgb(141, 138, 138); */
+/* } */
 #totWaterButton{
     background-color:rgb(130, 182, 228);
 }
-#avgWaterButton{
+/* #avgWaterButton{
     background-color:rgb(130, 182, 228);
 }
 #bottlesButton{
     background-color:rgb(130, 182, 228);
-}
+} */
 .center{
     text-align: center;
 } 

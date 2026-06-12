@@ -1,5 +1,5 @@
 {
-  "name": "GPT-Footprint",
+  "name": "AI Impact Tracker",
   "description": "Tokenize ChatGPT for inputs",
   "version": "1.0",
   "manifest_version": 3,
@@ -11,7 +11,7 @@
     "type": "module" 
   },
   "permissions": ["activeTab", "scripting", "geolocation", "storage"],
-  "host_permissions": ["http://gptfootprint.cs.haverford.edu/*"],
+  "host_permissions": ["http://aiimpacttracker.cs.haverford.edu/*"],
   "content_scripts": [{
     "matches": ["https://chatgpt.com/*"],
     "js": ["dist/content.bundle.js"]

@@ -1,6 +1,6 @@
 document.addEventListener("DOMContentLoaded", async ()=> {
     const userDiv = document.getElementById('userFootprint');
-    const linkButton = document.getElementById('gptFootprintButton');
+    const linkButton = document.getElementById('aiImpactTrackerButton');
     const welcomeButton = document.getElementById('welcomeButton');
     const totTokensButton = document.getElementById('totTokensButton');
     const avgTokensButton = document.getElementById('avgTokensButton');
@@ -27,17 +27,17 @@ document.addEventListener("DOMContentLoaded", async ()=> {
 
     // document.getElementById("userdata").textContent = userData;
     welcomeButton.innerText = userDataChars[0];
-    totTokensButton.innerText = userDataChars[1];
-    avgTokensButton.innerText = userDataChars[2];
-    totCarbonButton.innerText = userDataChars[3];
-    avgCarbonButton.innerText = userDataChars[4];
-    milesButton.innerText = userDataChars[5];
-    totWaterButton.innerText = userDataChars[6];
-    avgWaterButton.innerText = userDataChars[7];
-    bottlesButton.innerText = userDataChars[8];
+    totTokensButton.innerText = "Tokens: \n" + userDataChars[1] +"\n"+ userDataChars[2];
+    // avgTokensButton.innerText = userDataChars[2];
+    totCarbonButton.innerText = "Carbon: \n" + userDataChars[3] + "\n" + userDataChars[4] + "\n" + userDataChars[5];
+    // avgCarbonButton.innerText = userDataChars[4];
+    // milesButton.innerText = userDataChars[5];
+    totWaterButton.innerText = "Water: \n" + userDataChars[6] + "\n"+ userDataChars[7] + "\n" + userDataChars[8];
+    // avgWaterButton.innerText = userDataChars[7];
+    // bottlesButton.innerText = userDataChars[8];
 
     linkButton.addEventListener('click', function() {
-        chrome.tabs.create({ url: 'http://gptfootprint.cs.haverford.edu/' });
+        chrome.tabs.create({ url: 'http://aiimpacttracker.cs.haverford.edu/' });
     });
 
 });

@@ -63,7 +63,7 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
         console.log("stored user_id =", existingUserId);
 
         const payload = {
-          file_name: "emissions.csv",
+          file_name: "impacts.csv",
           data: [
             {
               tokens: tokenCount,
@@ -77,10 +77,10 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
           payload.user_id = existingUserId;
         }
 
-        console.log("Sending data to gptfootprint.cs");
+        console.log("Sending data to aiimpacttracker.cs");
         console.log("payload =", payload);
 
-        fetch("http://gptfootprint.cs.haverford.edu/api/write-csv/", {
+        fetch("http://aiimpacttracker.cs.haverford.edu/api/write-csv2/", {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
