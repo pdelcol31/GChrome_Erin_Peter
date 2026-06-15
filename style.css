@@ -2,9 +2,9 @@ body {
     min-width: 300px;
     display: flex;
     align-items: center;
-    background: #222;
+    background: white;
     justify-content: center;
-    color: white;
+    color: black;
     font-size: 16px;
     overflow-wrap: break-word;
 }
@@ -15,12 +15,12 @@ button{
     font-style: normal;
     font-size: 14px;
 }
-#gptFootprintButton{
+#aiImpactTrackerButton{
     width: 300px;
     margin-top: 10px;  /* Add space between text and button */
     padding: 10px 15px;
     line-height: 1.4;
-    color: blue;
+    color: rgb(61, 119, 244);
     font-style: normal;
     font-size: 16px;
     text-decoration: underline;
@@ -33,30 +33,15 @@ button{
     font-size: 20px;
     font-weight: bold; 
 }
-#totTokensButton{
+#TokensButton{
     background-color: rgb(246, 133, 133);
 }
-/* #avgTokensButton{
-    background-color: rgb(246, 133, 133);
-} */
-#totCarbonButton{
-    background-color: rgb(141, 138, 138);
+#CarbonButton{
+    background-color: rgb(190, 189, 189);
 }
-/* #avgCarbonButton{
-    background-color: rgb(141, 138, 138);
-} */
-/* #milesButton{ */
-    /* background-color: rgb(141, 138, 138); */
-/* } */
-#totWaterButton{
+#WaterButton{
     background-color:rgb(130, 182, 228);
 }
-/* #avgWaterButton{
-    background-color:rgb(130, 182, 228);
-}
-#bottlesButton{
-    background-color:rgb(130, 182, 228);
-} */
 .center{
     text-align: center;
 } 

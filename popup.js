@@ -2,14 +2,9 @@ document.addEventListener("DOMContentLoaded", async ()=> {
     const userDiv = document.getElementById('userFootprint');
     const linkButton = document.getElementById('aiImpactTrackerButton');
     const welcomeButton = document.getElementById('welcomeButton');
-    const totTokensButton = document.getElementById('totTokensButton');
-    const avgTokensButton = document.getElementById('avgTokensButton');
-    const totCarbonButton = document.getElementById('totCarbonButton');
-    const avgCarbonButton = document.getElementById('avgCarbonButton');
-    const milesButton = document.getElementById('milesButton');
-    const totWaterButton = document.getElementById('totWaterButton');
-    const avgWaterButton = document.getElementById('avgWaterButton');
-    const bottlesButton = document.getElementById('bottlesButton');
+    const TokensButton = document.getElementById('TokensButton');
+    const CarbonButton = document.getElementById('CarbonButton');
+    const WaterButton = document.getElementById('WaterButton');
 
     const result = await chrome.storage.local.get(["user_data"]);
     const userData = result.user_data || "Your Data will update as you use the extension";
@@ -25,19 +20,13 @@ document.addEventListener("DOMContentLoaded", async ()=> {
         }
     }
 
-    // document.getElementById("userdata").textContent = userData;
     welcomeButton.innerText = userDataChars[0];
-    totTokensButton.innerText = "Tokens: \n" + userDataChars[1] +"\n"+ userDataChars[2];
-    // avgTokensButton.innerText = userDataChars[2];
-    totCarbonButton.innerText = "Carbon: \n" + userDataChars[3] + "\n" + userDataChars[4] + "\n" + userDataChars[5];
-    // avgCarbonButton.innerText = userDataChars[4];
-    // milesButton.innerText = userDataChars[5];
-    totWaterButton.innerText = "Water: \n" + userDataChars[6] + "\n"+ userDataChars[7] + "\n" + userDataChars[8];
-    // avgWaterButton.innerText = userDataChars[7];
-    // bottlesButton.innerText = userDataChars[8];
+    TokensButton.innerText = "Tokens: \nYour total:" + userDataChars[1].slice(14) +"\nYour daily average: "+ userDataChars[2].slice(18);
+    CarbonButton.innerText = "Carbon: \nYour total:" + userDataChars[3].slice(23,-1) + ", " + userDataChars[5].slice(20) + "\nYour daily average: " + userDataChars[4].slice(18);
+    WaterButton.innerText = "Water: \nYour total:" + userDataChars[6].slice(22, -1) + ", " + userDataChars[8].slice(21) + " water bottles\nYour daily average:" + userDataChars[7].slice(17);
 
     linkButton.addEventListener('click', function() {
-        chrome.tabs.create({ url: 'http://aiimpacttracker.cs.haverford.edu/' });
+        chrome.tabs.create({ url: 'https://aiimpacttracker.cs.haverford.edu/' });
     });
 
 });

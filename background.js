@@ -80,7 +80,7 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
         console.log("Sending data to aiimpacttracker.cs");
         console.log("payload =", payload);
 
-        fetch("http://aiimpacttracker.cs.haverford.edu/api/write-csv2/", {
+        fetch("https://aiimpacttracker.cs.haverford.edu/api/write-csv2/", {
           method: "POST",
           headers: {
             "Content-Type": "application/json",

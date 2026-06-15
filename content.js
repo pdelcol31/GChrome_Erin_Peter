@@ -33,7 +33,7 @@ chrome.storage.local.get({ seenMessageIds: [] }).then(result => {
 // stores coarse location data of user as string (country, state, watershed id)
 let coarseLocation = "waiting for coarse location...";
 
-//Load in countries, states, counties json files
+//Load in countries, states, watershed json files
 // 1. get the internal URL
 //https://hub.arcgis.com/datasets/esri::world-countries-generalized/about
 const countriesFileUrl = chrome.runtime.getURL('World_Countries_(Generalized)_2173680399808997149.geojson');
@@ -43,13 +43,11 @@ const statesFileUrl = chrome.runtime.getURL('us-states.json');
 const aqueductIdsFileUrl = chrome.runtime.getURL('CanUS_aqueduct_ids.geojson');
 //https://simplemaps.com/gis/country/ca
 const canadaProvincesFileUrl = chrome.runtime.getURL('canada_provinces.json');
-// const paCountiesFileUrl = chrome.runtime.getURL('Pennsylvania_County_Boundaries.geojson');
 // 2. Fetch and parse the JSON
 var countriesGeoJson = null;
 var statesGeoJson = null;
 var aqueductIdsGeoJson = null;
 var canadaProvincesJson = null;
-// var paCountiesGeoJson = null;
 // 3. load spatial data
 async function loadSpatialData() {
     const countriesResponse = await fetch(countriesFileUrl);
@@ -60,9 +58,6 @@ async function loadSpatialData() {
     aqueductIdsGeoJson = await aqueductIdsResponse.json();
     const canadaProvincesResponse = await fetch(canadaProvincesFileUrl);
     canadaProvincesJson = await canadaProvincesResponse.json();
-
-    // const paCountiesResponse = await fetch(paCountiesFileUrl);
-    // paCountiesGeoJson = await paCountiesResponse.json();
     console.log("All spatial data loaded and ready.");
 }
 loadSpatialData();
@@ -209,18 +204,6 @@ async function getLocation2(userCoords) {
         }
         //update coarseLocation
         coarseLocation += ", " + watershedId.properties["string_id"];
-      
-        //if in PA, find county
-        // if(foundState.properties["name"] == "Pennsylvania"){
-        //     const foundPACounty = paCountiesGeoJson.features.find(county => 
-        //         booleanPointInPolygon(pt, county)
-        //     );
-        //     if(!foundPACounty){
-        //         console.log(`No county found for ${userCoords}`);
-        //         return
-        //     }
-        //     coarseLocation += ", " + foundPACounty.properties["COUNTY_NAME"];
-        // }
     }
     console.log(`Coarse Location: ${coarseLocation}`);
 }
