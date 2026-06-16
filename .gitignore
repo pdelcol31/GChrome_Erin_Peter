@@ -1,0 +1,4 @@
+.env
+node_modules/
+
+echo "CanUS_aqueduct_ids.geojson" >> .gitignore

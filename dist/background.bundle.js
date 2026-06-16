@@ -5,7 +5,11 @@ var __getOwnPropNames = Object.getOwnPropertyNames;
 var __getProtoOf = Object.getPrototypeOf;
 var __hasOwnProp = Object.prototype.hasOwnProperty;
 var __commonJS = (cb, mod) => function __require() {
-  return mod || (0, cb[__getOwnPropNames(cb)[0]])((mod = { exports: {} }).exports, mod), mod.exports;
+  try {
+    return mod || (0, cb[__getOwnPropNames(cb)[0]])((mod = { exports: {} }).exports, mod), mod.exports;
+  } catch (e) {
+    throw mod = 0, e;
+  }
 };
 var __copyProps = (to, from, except, desc) => {
   if (from && typeof from === "object" || typeof from === "function") {
@@ -438,12 +442,41 @@ function encodingForModel(model, extendSpecialTokens) {
 
 // background.js
 console.log("background service worker loaded");
+async function getEncryptionKey() {
+  const result = await chrome.storage.local.get(["enc_key"]);
+  if (result.enc_key) {
+    const rawKey = Uint8Array.from(atob(result.enc_key), (c) => c.charCodeAt(0));
+    return crypto.subtle.importKey("raw", rawKey, "AES-GCM", false, ["encrypt", "decrypt"]);
+  }
+  const key = await crypto.subtle.generateKey({ name: "AES-GCM", length: 256 }, true, ["encrypt", "decrypt"]);
+  const exported = await crypto.subtle.exportKey("raw", key);
+  await chrome.storage.local.set({ enc_key: btoa(String.fromCharCode(...new Uint8Array(exported))) });
+  return key;
+}
+async function encryptData(data) {
+  const key = await getEncryptionKey();
+  const iv = crypto.getRandomValues(new Uint8Array(12));
+  const encoded = new TextEncoder().encode(JSON.stringify(data));
+  const encrypted = await crypto.subtle.encrypt({ name: "AES-GCM", iv }, key, encoded);
+  return JSON.stringify({ iv: btoa(String.fromCharCode(...iv)), data: btoa(String.fromCharCode(...new Uint8Array(encrypted))) });
+}
+async function decryptData(stored) {
+  const key = await getEncryptionKey();
+  const { iv, data } = JSON.parse(stored);
+  const decrypted = await crypto.subtle.decrypt(
+    { name: "AES-GCM", iv: Uint8Array.from(atob(iv), (c) => c.charCodeAt(0)) },
+    key,
+    Uint8Array.from(atob(data), (c) => c.charCodeAt(0))
+  );
+  return JSON.parse(new TextDecoder().decode(decrypted));
+}
 async function getStoredUserId() {
-  const result = await chrome.storage.local.get(["user_id"]);
-  return result.user_id || null;
+  const raw = await chrome.storage.local.get(["user_id"]);
+  const result = raw.user_id ? await decryptData(raw.user_id) : null;
+  return result || null;
 }
 async function setStoredUserId(userId) {
-  await chrome.storage.local.set({ user_id: userId });
+  await chrome.storage.local.set({ user_id: await encryptData(userId) });
 }
 chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
   if (request?.action === "COUNT_TOKENS") {
@@ -480,7 +513,8 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
-            "X-API-Key": "dev_key_change_me",
+            "X-API-Key": "44cf2d37-1e0d-4847-b6e9-81bb877bc2d1",
+            //"dev_key_change_me",
             "X-From-Extension": "1"
           },
           body: JSON.stringify(payload)
@@ -490,20 +524,55 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
           return JSON.parse(text);
         }).then(async (data) => {
           console.log("server response data =", data);
-          await chrome.storage.local.set({ user_data: data.user_data });
+          await chrome.storage.local.set({ user_data: await encryptData(data.user_data) });
           console.log("Saved user_data:", data.user_data);
           if (data.request_id && !existingUserId) {
             await setStoredUserId(data.request_id);
             console.log("Saved user_id:", data.request_id);
-            const check = await chrome.storage.local.get(["requst_id"]);
-            console.log("storage after save =", check);
           }
           sendResponse({ ok: true, tokenCount, data });
+          chrome.action.setBadgeText({ text: "!" });
+          chrome.action.setBadgeBackgroundColor({ color: "#FF0000" });
         }).catch(
           (err) => sendResponse({ ok: false, tokenCount, error: err.message })
         );
       })();
       return true;
     }
+  } else if (request?.action === "RELOAD_USER_DATA") {
+    (async () => {
+      try {
+        const payload = {
+          file_name: "impacts.csv",
+          data: []
+          // Only sending the user id context, no new token data
+        };
+        if (request.userId) {
+          payload.user_id = request.userId;
+        }
+        console.log("Reload button triggered sync. Payload:", payload);
+        const res = await fetch("https://aiimpacttracker.cs.haverford.edu/api/reload-extension-data/", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "X-API-Key": "44cf2d37-1e0d-4847-b6e9-81bb877bc2d1",
+            //"dev_key_change_me",
+            "X-From-Extension": "1"
+          },
+          body: JSON.stringify(payload)
+        });
+        const text = await res.text();
+        if (!res.ok) throw new Error(`HTTP ${res.status}: ${text}`);
+        const data = JSON.parse(text);
+        await chrome.storage.local.set({ user_data: await encryptData(data.user_data) });
+        console.log("Reload synced user_data successfully.");
+        chrome.action.setBadgeText({ text: "" });
+        sendResponse({ success: true });
+      } catch (err) {
+        console.error("Reload sync failed:", err.message);
+        sendResponse({ success: false, error: err.message });
+      }
+    })();
+    return true;
   }
 });

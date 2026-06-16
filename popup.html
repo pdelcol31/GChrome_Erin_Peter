@@ -5,12 +5,15 @@
     </head>
     <body>
         <div class="center">
-            <button id="welcomeButton">Welcome!</button>
+            <div id="welcomeButton">Welcome!</div>
             <div id="infoMessage">See the impact of your ChatGPT usage: </div>
-            <button id="CarbonButton">Total Carbon Emission (g): 0</button>
-            <button id="WaterButton">Total Water (mL): 0</button>
-            <button id="TokensButton">Total Tokens: 0</button>
-            <button id="aiImpactTrackerButton">Click here to see total energy, water, and carbon consumption!</button>
+            <!-- <button id = "reloadButton">Reload</button> -->
+            <div id="statButtons">
+                <div id="CarbonButton">Total Carbon Emission (g): 0</div>
+                <div id="WaterButton">Total Water (mL): 0</div>
+                <div id="TokensButton">Total Tokens: 0</div>
+            </div>
+            <button id="aiImpactTrackerButton"><b>Click here</b> to see total energy, water, and carbon consumption!</button>
             <script src="popup.js"></script>
         </div> 
     </body>

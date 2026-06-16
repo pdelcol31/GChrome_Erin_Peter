@@ -17,7 +17,7 @@
     "js": ["dist/content.bundle.js"]
   }],
   "web_accessible_resources": [{
-    "resources": ["World_Countries_(Generalized)_2173680399808997149.geojson", "us-states.json", "CanUS_aqueduct_ids.geojson", "canada_provinces.json"],
+    "resources": ["World_Countries_(Generalized)_2173680399808997149.geojson", "us-states.json", "CanUS_aqueduct_ids.geojson", "canada_provinces.json", "water_drop.png", "car.svg", "water_bottle.svg"],
       "matches": ["<all_urls>"]
   }]
 }
