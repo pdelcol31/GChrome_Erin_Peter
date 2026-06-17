@@ -6,7 +6,11 @@
   var __getProtoOf = Object.getPrototypeOf;
   var __hasOwnProp = Object.prototype.hasOwnProperty;
   var __commonJS = (cb, mod) => function __require() {
-    return mod || (0, cb[__getOwnPropNames(cb)[0]])((mod = { exports: {} }).exports, mod), mod.exports;
+    try {
+      return mod || (0, cb[__getOwnPropNames(cb)[0]])((mod = { exports: {} }).exports, mod), mod.exports;
+    } catch (e) {
+      throw mod = 0, e;
+    }
   };
   var __copyProps = (to, from, except, desc) => {
     if (from && typeof from === "object" || typeof from === "function") {
@@ -1081,9 +1085,11 @@
   }
 
   // content.js
-  var seenIds = [];
-  chrome.storage.local.get({ seenMessageIds: [] }).then((result) => {
-    seenIds = result.seenMessageIds;
+  var seenIds = /* @__PURE__ */ new Set();
+  var seenImgs = /* @__PURE__ */ new Set();
+  chrome.storage.local.get({ seenMessageIds: [], seenImages: [] }).then((result) => {
+    seenIds = new Set(result.seenMessageIds);
+    seenImgs = new Set(result.seenImages);
     observer.observe(document.body, {
       childList: true,
       subtree: true
@@ -1112,48 +1118,90 @@
   loadSpatialData();
   function getMessageId(container) {
     const text = container.innerText.trim();
-    if (text.length < 175) {
+    if (text.length < 250) {
       return (0, import_js_sha256.sha256)(text);
     } else {
-      return (0, import_js_sha256.sha256)(text.substring(0, 175));
+      return (0, import_js_sha256.sha256)(text.substring(0, 250));
     }
   }
-  var observer = new MutationObserver((mutations, obs) => {
+  var observer = new MutationObserver((mutations) => {
     const responseAnchors = document.querySelectorAll('p[data-is-last-node="true"], p[data-is-last-node=""]');
     responseAnchors.forEach((p) => {
       if (p) {
         const messageContainer = p.closest(".markdown");
-        if (messageContainer && !messageContainer.dataset.isProcessing) {
-          if (messageContainer._timer) clearTimeout(messageContainer._timer);
+        if (messageContainer && messageContainer.dataset.isProcessed === "true") {
+          return;
+        }
+        if (messageContainer && !messageContainer._timer) {
           messageContainer._timer = setTimeout(async () => {
-            messageContainer.dataset.isProcessing = "true";
-            while (coarseLocation == "waiting for coarse location...") {
+            while (coarseLocation === "waiting for coarse location...") {
               await new Promise((resolve) => setTimeout(resolve, 500));
             }
-            ;
             while (!!document.querySelector('button[aria-label="Stop generating"]')) {
               await new Promise((resolve) => setTimeout(resolve, 1e3));
             }
             const messageID = getMessageId(messageContainer);
-            if (messageID && !seenIds.includes(messageID)) {
-              seenIds.push(messageID);
-              chrome.storage.local.set({ seenMessageIds: seenIds });
-              const contents = messageContainer.innerText;
-              console.log("Scraped Data:", contents);
-              chrome.runtime.sendMessage({
-                action: "COUNT_TOKENS",
-                text: contents,
-                location: coarseLocation
-              });
-            } else {
-              const contents = messageContainer.innerText;
-              console.log("existing Data:", contents.substring(0, 175));
+            if (!messageID || seenIds.has(messageID)) {
+              const contents2 = messageContainer.innerText;
+              messageContainer.dataset.isProcessed = "true";
+              cleanupTimer(messageContainer);
+              return;
             }
+            seenIds.add(messageID);
+            messageContainer.dataset.isProcessed = "true";
+            chrome.storage.local.get({ seenMessageIds: [] }).then((result) => {
+              const updatedArray = [.../* @__PURE__ */ new Set([...result.seenMessageIds, messageID])];
+              chrome.storage.local.set({ seenMessageIds: updatedArray });
+            });
+            const contents = messageContainer.innerText;
+            chrome.runtime.sendMessage({
+              action: "COUNT_TOKENS",
+              text: contents,
+              location: coarseLocation
+            });
+            cleanupTimer(messageContainer);
           }, 5e3);
         }
       }
     });
+    const imageAnchors = document.querySelectorAll('img[id^="_r_"]');
+    imageAnchors.forEach((img) => {
+      if (!img) {
+        return;
+      }
+      ;
+      img._timer = setTimeout(async () => {
+        while (coarseLocation === "waiting for coarse location...") {
+          await new Promise((resolve) => setTimeout(resolve, 500));
+        }
+        while (!!document.querySelector('button[aria-label="Stop generating"]')) {
+          await new Promise((resolve) => setTimeout(resolve, 1e3));
+        }
+        const imgWidth = img.width;
+        const imgHeight = img.height;
+        const urlObj = new URL(img.src);
+        const fileId = urlObj.searchParams.get("id");
+        if (!fileId || seenImgs.has(fileId)) {
+          return;
+        }
+        seenImgs.add(fileId);
+        chrome.storage.local.get({ seenImageIds: [] }).then((result) => {
+          const updatedArray = [.../* @__PURE__ */ new Set([...result.seenImageIds, fileId])];
+          chrome.storage.local.set({ seenImageIds: updatedArray });
+        });
+        chrome.runtime.sendMessage({
+          action: "COUNT_IMAGES",
+          height: imgHeight,
+          width: imgWidth,
+          location: coarseLocation
+        });
+      }, 5e3);
+    });
   });
+  function cleanupTimer(container) {
+    if (container._timer) clearTimeout(container._timer);
+    container._timer = null;
+  }
   navigator.geolocation.watchPosition((position) => {
     const lat = position.coords.latitude;
     const lng = position.coords.longitude;
@@ -1196,7 +1244,7 @@
     } else {
       coarseLocation += ", ";
     }
-    if (foundCountry.properties["COUNTRY"] == "Canada" | foundCountry.properties["COUNTRY"] == "United States") {
+    if (foundCountry.properties["COUNTRY"] == "Canada" || foundCountry.properties["COUNTRY"] == "United States") {
       const watershedId = aqueductIdsGeoJson.features.find(
         (string_id) => booleanPointInPolygon(pt, string_id)
       );
@@ -1206,7 +1254,6 @@
       }
       coarseLocation += ", " + watershedId.properties["string_id"];
     }
-    console.log(`Coarse Location: ${coarseLocation}`);
   }
 })();
 /*! Bundled license information:

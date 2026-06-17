@@ -441,7 +441,6 @@ function encodingForModel(model, extendSpecialTokens) {
 }
 
 // background.js
-console.log("background service worker loaded");
 async function getEncryptionKey() {
   const result = await chrome.storage.local.get(["enc_key"]);
   if (result.enc_key) {
@@ -490,10 +489,7 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
         const enc = encodingForModel("gpt-5-chat-latest");
         const tokens = enc.encode(responses);
         const tokenCount = tokens.length;
-        console.log("tokens calculated in background = " + tokenCount);
-        console.log("location = " + userLocation);
         const existingUserId = await getStoredUserId();
-        console.log("stored user_id =", existingUserId);
         const payload = {
           file_name: "impacts.csv",
           data: [
@@ -508,13 +504,11 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
           payload.user_id = existingUserId;
         }
         console.log("Sending data to aiimpacttracker.cs");
-        console.log("payload =", payload);
         fetch("https://aiimpacttracker.cs.haverford.edu/api/write-csv2/", {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
             "X-API-Key": "44cf2d37-1e0d-4847-b6e9-81bb877bc2d1",
-            //"dev_key_change_me",
             "X-From-Extension": "1"
           },
           body: JSON.stringify(payload)
@@ -523,18 +517,65 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
           if (!res.ok) throw new Error(`HTTP ${res.status}: ${text}`);
           return JSON.parse(text);
         }).then(async (data) => {
-          console.log("server response data =", data);
           await chrome.storage.local.set({ user_data: await encryptData(data.user_data) });
-          console.log("Saved user_data:", data.user_data);
           if (data.request_id && !existingUserId) {
             await setStoredUserId(data.request_id);
-            console.log("Saved user_id:", data.request_id);
           }
           sendResponse({ ok: true, tokenCount, data });
           chrome.action.setBadgeText({ text: "!" });
           chrome.action.setBadgeBackgroundColor({ color: "#FF0000" });
         }).catch(
           (err) => sendResponse({ ok: false, tokenCount, error: err.message })
+        );
+      })();
+      return true;
+    }
+  } else if (request?.action === "COUNT_IMAGES") {
+    let height = request.height;
+    let width = request.width;
+    let userLocation = request.location;
+    if (height == null || width == null) {
+      console.log("No image found");
+      return;
+    } else {
+      (async () => {
+        const existingUserId = await getStoredUserId();
+        const payload = {
+          file_name: "impacts.csv",
+          data: [
+            {
+              height,
+              width,
+              location: userLocation,
+              date: (/* @__PURE__ */ new Date()).toLocaleDateString("en-US")
+            }
+          ]
+        };
+        if (existingUserId) {
+          payload.user_id = existingUserId;
+        }
+        fetch("https://aiimpacttracker.cs.haverford.edu/api/write-csv-img/", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "X-API-Key": "44cf2d37-1e0d-4847-b6e9-81bb877bc2d1",
+            "X-From-Extension": "1"
+          },
+          body: JSON.stringify(payload)
+        }).then(async (res) => {
+          const text = await res.text();
+          if (!res.ok) throw new Error(`HTTP ${res.status}: ${text}`);
+          return JSON.parse(text);
+        }).then(async (data) => {
+          await chrome.storage.local.set({ user_data: await encryptData(data.user_data) });
+          if (data.request_id && !existingUserId) {
+            await setStoredUserId(data.request_id);
+          }
+          sendResponse({ ok: true, data });
+          chrome.action.setBadgeText({ text: "!" });
+          chrome.action.setBadgeBackgroundColor({ color: "#FF0000" });
+        }).catch(
+          (err) => sendResponse({ ok: false, error: err.message })
         );
       })();
       return true;
@@ -550,13 +591,11 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
         if (request.userId) {
           payload.user_id = request.userId;
         }
-        console.log("Reload button triggered sync. Payload:", payload);
         const res = await fetch("https://aiimpacttracker.cs.haverford.edu/api/reload-extension-data/", {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
             "X-API-Key": "44cf2d37-1e0d-4847-b6e9-81bb877bc2d1",
-            //"dev_key_change_me",
             "X-From-Extension": "1"
           },
           body: JSON.stringify(payload)
@@ -565,7 +604,6 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
         if (!res.ok) throw new Error(`HTTP ${res.status}: ${text}`);
         const data = JSON.parse(text);
         await chrome.storage.local.set({ user_data: await encryptData(data.user_data) });
-        console.log("Reload synced user_data successfully.");
         chrome.action.setBadgeText({ text: "" });
         sendResponse({ success: true });
       } catch (err) {

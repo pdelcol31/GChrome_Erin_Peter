@@ -1,7 +1,8 @@
 body {
-    min-width: 300px;
+    /* min-width: 300px; */
     display: flex;
     align-items: center;
+    text-align: center;
     background: white;
     justify-content: center;
     color: black;
@@ -29,25 +30,27 @@ button{
     
 }
 #welcomeButton{
-    width: 300px;
-    padding: 10px 15px;
+    /* width: 300px; */
+    padding: 10px 10px;
     color: black;
     font-style: normal;
     font-size: 20px;
     font-weight: bold; 
+    text-align: center;
+    margin: 0 auto; 
 }
 #statButtons {
     display: inline-flex;
     flex-direction: column;
     align-items: stretch;
-    margin: 10px 0;
+    margin: 5px 0;
 }
 #TokensButton{
-    background-color: rgb(246, 133, 133);
+    background-color: rgb(221, 217, 217);
     margin-top: 8px;
-    border: 2px solid rgb(210, 90, 90);
+    border: 2px solid rgb(186, 183, 183);
     border-radius: 6px;
-    padding: 10px 15px;
+    padding: 5px 15px;
     user-select: text;
 }
 #CarbonButton{
@@ -55,7 +58,7 @@ button{
     margin-top: 8px;
     border: 2px solid rgb(140, 140, 140);
     border-radius: 6px;
-    padding: 10px 15px;
+    padding: 5px 15px;
     user-select: text;
 }
 #WaterButton{
@@ -63,7 +66,7 @@ button{
     margin-top: 8px;
     border: 2px solid rgb(80, 140, 195);
     border-radius: 6px;
-    padding: 10px 15px;
+    padding: 5px 15px;
     user-select: text;
 }
 #statButtons table {
@@ -72,26 +75,24 @@ button{
 }
 
 #statButtons td {
-  padding: 2px 2px 2px 0;
-  vertical-align: middle;
+  padding: 2px 6px 2px 0;
+  vertical-align: center;
   white-space: nowrap;
 }
 
 #statButtons td:first-child {
-  min-width: 130px; /* ensures labels column is same width across all buttons */
+  min-width: 100px; /* ensures labels column is same width across all buttons */
 }
-/* #reloadButton{
-    background-color: rgb(156, 243, 156);
-    border: 2px solid rgb(106, 201, 123);
-    border-radius: 6px;
-    padding: 5px 5px;
-
-} */
+#statButtons td:nth-child(2) {
+  width: 100px; 
+}
+#statButtons td:nth-child(3) {
+  width: 36px;
+}
 .center{
     text-align: center;
 } 
-
 ul {
     list-style: none;
-    text-align: left;
+    text-align: center;
 } 

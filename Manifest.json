@@ -1,6 +1,6 @@
 {
   "name": "AI Impact Tracker",
-  "description": "Tokenize ChatGPT for inputs",
+  "description": "Quantify the environmental impacts of ChatGPT usage including carbon, water, and energy consumption.",
   "version": "1.0",
   "manifest_version": 3,
   "action": {
@@ -17,7 +17,7 @@
     "js": ["dist/content.bundle.js"]
   }],
   "web_accessible_resources": [{
-    "resources": ["World_Countries_(Generalized)_2173680399808997149.geojson", "us-states.json", "CanUS_aqueduct_ids.geojson", "canada_provinces.json", "water_drop.png", "car.svg", "water_bottle.svg"],
+    "resources": ["World_Countries_(Generalized)_2173680399808997149.geojson", "us-states.json", "CanUS_aqueduct_ids.geojson", "canada_provinces.json", "car.svg", "water_bottle.svg", "lightbulb.svg"],
       "matches": ["<all_urls>"]
   }]
 }

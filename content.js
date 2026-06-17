@@ -17,11 +17,13 @@ import { booleanPointInPolygon } from '@turf/boolean-point-in-polygon' //spatial
 
 // Keep track of which message elements we've already scraped (a set containing
     // message ids)
-let seenIds = []; 
+let seenIds = new Set(); //[]; 
+let seenImgs = new Set();
 
 // Fetch once at the very beginning
-chrome.storage.local.get({ seenMessageIds: [] }).then(result => {
-    seenIds = result.seenMessageIds;
+chrome.storage.local.get({ seenMessageIds: [], seenImages: [] }).then(result => {
+    seenIds = new Set(result.seenMessageIds);
+    seenImgs = new Set(result.seenImages);
 
     // Constantly observe webpage
     observer.observe(document.body, {
@@ -68,16 +70,16 @@ function getMessageId(container) {
     const text = container.innerText.trim();
 
     //using SHA256 hashing
-    if(text.length < 175){
+    if(text.length < 250){
         return sha256(text);
     }
     else{
-        return sha256(text.substring(0,175));
+        return sha256(text.substring(0,250));
     }
 }
 
 // main scraping function
-const observer = new MutationObserver((mutations, obs) => {
+const observer = new MutationObserver((mutations) => {
     // Look for the specific 'p' tag that signals the end of a response
     const responseAnchors = document.querySelectorAll('p[data-is-last-node="true"], p[data-is-last-node=""]');   
     // Loop through all the tags (e.g. responses) found
@@ -86,52 +88,101 @@ const observer = new MutationObserver((mutations, obs) => {
             // Navigate up to the main message container
             const messageContainer = p.closest('.markdown'); 
 
-            if (messageContainer && !messageContainer.dataset.isProcessing) {
-                // clean the timer for this specific message container
-                if (messageContainer._timer) clearTimeout(messageContainer._timer);
+            if (messageContainer && messageContainer.dataset.isProcessed === "true") {
+            return;
+            }
 
+            if (messageContainer && !messageContainer._timer) {
                 // set a new timer on this specific message container
                 messageContainer._timer = setTimeout(async () => {
-                    // mark message container as processing
-                    messageContainer.dataset.isProcessing = "true";
-                    //wait for coarse location to load
-                    while(coarseLocation == "waiting for coarse location..."){
+                    while (coarseLocation === "waiting for coarse location...") {
                         await new Promise(resolve => setTimeout(resolve, 500)); 
-                    };
-                    // pause here until the "Stop generating" button is gone
-                    while (!!document.querySelector('button[aria-label="Stop generating"]')) {
-                        await new Promise(resolve => setTimeout(resolve, 1000)); // Check every 1s
                     }
+                    while (!!document.querySelector('button[aria-label="Stop generating"]')) {
+                        await new Promise(resolve => setTimeout(resolve, 1000)); 
+                    }
+
                     // create a message id
                     const messageID = getMessageId(messageContainer);
 
-                    // Check if this response has been seen before
-                    if(messageID && !seenIds.includes(messageID)){
-                        // update the local variable so the NEXT observer run sees it
-                        seenIds.push(messageID);
-                        // save to permanent storage in the background
-                        chrome.storage.local.set({ seenMessageIds: seenIds });
-                            
-                        // Capture the text
+                    // instant synchronous duplicate check
+                    if (!messageID || seenIds.has(messageID)) {
                         const contents = messageContainer.innerText;
-                        console.log("Scraped Data:", contents);
+                        // console.log("existing Data:", contents.substring(0, 175));
+                        messageContainer.dataset.isProcessed = "true";
+                        cleanupTimer(messageContainer);
+                        return;
+                    }
 
-                        // Send text content and location to background.js
-                        chrome.runtime.sendMessage({ 
-                            action: "COUNT_TOKENS", 
-                            text: contents ,
-                            location: coarseLocation
-                        });
-                    }
-                    else{ // if response already seen
-                        const contents = messageContainer.innerText;
-                        console.log("existing Data:", contents.substring(0,175));
-                    }
+                    // Add to local Set instantly before any async 'await' pauses execution
+                    seenIds.add(messageID);
+                    // mark message container as processing
+                    messageContainer.dataset.isProcessed = "true";
+
+                    // Update permanent storage atomically
+                    chrome.storage.local.get({ seenMessageIds: [] }).then(result => {
+                        const updatedArray = [...new Set([...result.seenMessageIds, messageID])];
+                        chrome.storage.local.set({ seenMessageIds: updatedArray });
+                    });
+
+                    // Capture final finalized text
+                    const contents = messageContainer.innerText;
+                    // console.log("Scraped Data:", contents);
+
+                    chrome.runtime.sendMessage({ 
+                        action: "COUNT_TOKENS", 
+                        text: contents ,
+                        location: coarseLocation
+                    });
+
+                    cleanupTimer(messageContainer);
                 }, 5000);
             }
         }
     });
+    const imageAnchors = document.querySelectorAll('img[id^="_r_"]');
+    imageAnchors.forEach((img) => {
+        if(!img){return};
+        img._timer = setTimeout(async () => {
+            while (coarseLocation === "waiting for coarse location...") {
+                await new Promise(resolve => setTimeout(resolve, 500)); 
+            }
+            while (!!document.querySelector('button[aria-label="Stop generating"]')) {
+                await new Promise(resolve => setTimeout(resolve, 1000)); 
+            }
+            const imgWidth = img.width;
+            const imgHeight = img.height;
+            const urlObj = new URL(img.src);
+            const fileId = urlObj.searchParams.get('id');
+
+            if (!fileId || seenImgs.has(fileId)) {
+                // console.log("existing Image:", fileId);
+                return;
+            }
+            seenImgs.add(fileId);
+
+            // Update permanent storage atomically
+            chrome.storage.local.get({ seenImageIds: [] }).then(result => {
+                const updatedArray = [...new Set([...result.seenImageIds, fileId])];
+                chrome.storage.local.set({ seenImageIds: updatedArray });
+            });
+            // console.log("Scraped Image:", fileId);
+
+            chrome.runtime.sendMessage({ 
+                action: "COUNT_IMAGES", 
+                height: imgHeight ,
+                width: imgWidth,
+                location: coarseLocation
+            });
+        }, 5000);
+    });
 });
+
+
+function cleanupTimer(container) {
+    if (container._timer) clearTimeout(container._timer);
+    container._timer = null;
+}
 
 //run when a user's location changes and update global coarseLocation variable
 navigator.geolocation.watchPosition((position) => {
@@ -193,7 +244,7 @@ async function getLocation2(userCoords) {
     else{
         coarseLocation += ", ";
     }
-    if (foundCountry.properties["COUNTRY"] == "Canada" | foundCountry.properties["COUNTRY"] == "United States"){
+    if (foundCountry.properties["COUNTRY"] == "Canada" || foundCountry.properties["COUNTRY"] == "United States"){
         //find watershed id for US and Canada
         const watershedId = aqueductIdsGeoJson.features.find(string_id => 
             booleanPointInPolygon(pt, string_id)
@@ -205,5 +256,5 @@ async function getLocation2(userCoords) {
         //update coarseLocation
         coarseLocation += ", " + watershedId.properties["string_id"];
     }
-    console.log(`Coarse Location: ${coarseLocation}`);
+    // console.log(`Coarse Location: ${coarseLocation}`);
 }

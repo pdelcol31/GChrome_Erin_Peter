@@ -11,8 +11,8 @@
 
 // Use this command after installing npm:
 // npx esbuild background.js --bundle --outfile=dist/background.bundle.js --platform=browser --format=esm --loader:.wasm=file --external:chrome
+//or: npm run build
 
-console.log("background service worker loaded");
 import { encodingForModel } from "js-tiktoken";
 
 // Generate or retrieve encryption key
@@ -52,25 +52,21 @@ async function decryptData(stored) {
 async function getStoredUserId() {
   const raw = await chrome.storage.local.get(["user_id"]);
   const result = raw.user_id ? await decryptData(raw.user_id) : null;
-  // const result = await chrome.storage.local.get(["user_id"]);
   return result || null;
 }
 
 async function setStoredUserId(userId) {
   await chrome.storage.local.set({ user_id: await encryptData(userId) });
-  // await chrome.storage.local.set({ user_id: userId });
 }
 
 async function getStoredUserData() {
   const raw = await chrome.storage.local.get(["user_data"]);
   const result = raw.user_data ? await decryptData(raw.user_data) : null;
-  // const result = await chrome.storage.local.get(["user_data"]);
   return result || null;
 }
 
 async function setStoredUserData(userData) {
   await chrome.storage.local.set({ user_data: await encryptData(userData) });
-  // await chrome.storage.local.set({ user_data: userData });
 }
 
 //receive data from content.js, calculate tokens, and send and receive data from server
@@ -95,12 +91,11 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
         const tokens = enc.encode(responses);
         const tokenCount = tokens.length;
 
-        // display tokens
-        console.log("tokens calculated in background = " + tokenCount);
-        console.log("location = " + userLocation);
+        // console.log("tokens calculated in background = " + tokenCount);
+        // console.log("location = " + userLocation);
 
         const existingUserId = await getStoredUserId();
-        console.log("stored user_id =", existingUserId);
+        // console.log("stored user_id =", existingUserId);
 
         const payload = {
           file_name: "impacts.csv",
@@ -118,13 +113,13 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
         }
 
         console.log("Sending data to aiimpacttracker.cs");
-        console.log("payload =", payload);
+        // console.log("payload =", payload);
 
         fetch("https://aiimpacttracker.cs.haverford.edu/api/write-csv2/", {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
-            "X-API-Key": API_KEY,//"dev_key_change_me",
+            "X-API-Key": API_KEY,
             "X-From-Extension": "1",
           },
           body: JSON.stringify(payload),
@@ -135,23 +130,17 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
             return JSON.parse(text);
           })
           .then(async (data) => {
-            console.log("server response data =", data);
+            // console.log("server response data =", data);
 
             await chrome.storage.local.set({ user_data: await encryptData(data.user_data) });
-            // await chrome.storage.local.set({ user_data: data.user_data });
-            console.log("Saved user_data:", data.user_data);
+            // console.log("Saved user_data:", data.user_data);
               
             if (data.request_id && !existingUserId) {
               await setStoredUserId(data.request_id);
-              console.log("Saved user_id:", data.request_id);
+              // console.log("Saved user_id:", data.request_id);
             }
             sendResponse({ ok: true, tokenCount, data });
-            // chrome.notifications.create({
-            //   type: 'basic',
-            //   iconUrl: chrome.runtime.getURL('water_drop.png'),
-            //   title: 'AI Impact Tracker',
-            //   message: 'Your usage has been updated!'
-            // });
+
             chrome.action.setBadgeText({ text: '!' });
             chrome.action.setBadgeBackgroundColor({ color: '#FF0000' });
           })
@@ -159,6 +148,70 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
             sendResponse({ ok: false, tokenCount, error: err.message })
           );
       })();  
+      return true;
+    }
+  }
+  else if (request?.action === "COUNT_IMAGES"){
+    let height = request.height;
+    let width = request.width;
+    let userLocation = request.location;
+
+    if(height == null || width == null){
+      //No response found
+      console.log("No image found");
+      return;
+    }
+    else {
+      (async () => {
+        const existingUserId = await getStoredUserId();
+        // console.log("stored user_id =", existingUserId);
+        const payload = {
+          file_name: "impacts.csv",
+          data: [
+            {
+              height: height,
+              width: width,
+              location: userLocation,
+              date: new Date().toLocaleDateString("en-US"),
+            },
+          ],
+        };
+        if (existingUserId) {
+          payload.user_id = existingUserId;
+        }
+        fetch("https://aiimpacttracker.cs.haverford.edu/api/write-csv-img/", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "X-API-Key": API_KEY,
+            "X-From-Extension": "1",
+          },
+          body: JSON.stringify(payload),
+        })
+          .then(async (res) => {
+              const text = await res.text();
+              if (!res.ok) throw new Error(`HTTP ${res.status}: ${text}`);
+              return JSON.parse(text);
+            })
+          .then(async (data) => {
+            // console.log("server response data =", data);
+
+            await chrome.storage.local.set({ user_data: await encryptData(data.user_data) });
+            // console.log("Saved user_data:", data.user_data);
+                
+            if (data.request_id && !existingUserId) {
+              await setStoredUserId(data.request_id);
+              // console.log("Saved user_id:", data.request_id);
+            }
+            sendResponse({ ok: true, data });
+
+            chrome.action.setBadgeText({ text: '!' });
+              chrome.action.setBadgeBackgroundColor({ color: '#FF0000' });
+            })
+          .catch((err) =>
+            sendResponse({ ok: false, error: err.message })
+          );
+      })();
       return true;
     }
   }
@@ -174,13 +227,13 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
           payload.user_id = request.userId;
         }
 
-        console.log("Reload button triggered sync. Payload:", payload);
+        // console.log("Reload button triggered sync. Payload:", payload);
 
         const res = await fetch("https://aiimpacttracker.cs.haverford.edu/api/reload-extension-data/", {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
-            "X-API-Key": API_KEY, //"dev_key_change_me",
+            "X-API-Key": API_KEY, 
             "X-From-Extension": "1",
           },
           body: JSON.stringify(payload),
@@ -192,8 +245,7 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
 
         // Save the updated server data back to local storage
         await chrome.storage.local.set({ user_data: await encryptData(data.user_data) });
-        // await chrome.storage.local.set({ user_data: data.user_data });
-        console.log("Reload synced user_data successfully.");
+        // console.log("Reload synced user_data successfully.");
 
         // Clear notification badge since user manually updated
         chrome.action.setBadgeText({ text: '' });
