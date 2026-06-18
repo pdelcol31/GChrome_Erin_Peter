@@ -1,5 +1,5 @@
 body {
-    /* min-width: 300px; */
+    min-width: 300px;
     display: flex;
     align-items: center;
     text-align: center;
