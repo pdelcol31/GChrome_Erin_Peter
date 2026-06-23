@@ -31,7 +31,7 @@ async function updateUIWithLatestData() {
     const WaterButton = document.getElementById('WaterButton');
 
     const result = await chrome.storage.local.get(["user_data"]);
-    const userData = result.user_data ? await decryptData(result.user_data) : "Your Data will update as you use the extension";
+    const userData = result.user_data ? await decryptData(result.user_data) : "Welcome to AI Impact Tracker!";
 
     userDataChars = ['','','','','','','','','','',''];
     index = 0;

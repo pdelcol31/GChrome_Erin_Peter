@@ -489,6 +489,7 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
         const enc = encodingForModel("gpt-5-chat-latest");
         const tokens = enc.encode(responses);
         const tokenCount = tokens.length;
+        console.log("tokens calculated in background = " + tokenCount);
         const existingUserId = await getStoredUserId();
         const payload = {
           file_name: "impacts.csv",

@@ -1,7 +1,7 @@
 {
   "name": "AI Impact Tracker",
   "description": "Quantify the environmental impacts of ChatGPT usage including carbon, water, and energy consumption.",
-  "version": "1.0",
+  "version": "1.0.1",
   "manifest_version": 3,
   "action": {
     "default_popup": "popup.html"
@@ -10,7 +10,7 @@
     "service_worker": "dist/background.bundle.js",
     "type": "module" 
   },
-  "permissions": ["activeTab", "scripting", "geolocation", "storage"],
+  "permissions": ["geolocation", "storage"],
   "host_permissions": ["https://aiimpacttracker.cs.haverford.edu/*"],
   "content_scripts": [{
     "matches": ["https://chatgpt.com/*"],

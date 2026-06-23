@@ -98,8 +98,20 @@ const observer = new MutationObserver((mutations) => {
                     while (coarseLocation === "waiting for coarse location...") {
                         await new Promise(resolve => setTimeout(resolve, 500)); 
                     }
-                    while (!!document.querySelector('button[aria-label="Stop generating"]')) {
+                    while (messageContainer.classList.contains('result-streaming') || 
+                    messageContainer.closest('.result-streaming') ||
+                    !!document.querySelector('.result-streaming') ||
+                    !!document.querySelector('button[aria-label*="Stop"], button[aria-label*="stop"]')) { //!!document.querySelector('button[aria-label="Stop generating"]')
                         await new Promise(resolve => setTimeout(resolve, 1000)); 
+                    }
+
+                    // Extra safety: dynamic wait to make sure text length hasn't changed in the last 500ms
+                    let lastLength = 0;
+                    let currentLength = messageContainer.innerText.length;
+                    while (currentLength !== lastLength || currentLength === 0) {
+                        lastLength = currentLength;
+                        await new Promise(resolve => setTimeout(resolve, 500));
+                        currentLength = messageContainer.innerText.length;
                     }
 
                     // create a message id
@@ -108,7 +120,7 @@ const observer = new MutationObserver((mutations) => {
                     // instant synchronous duplicate check
                     if (!messageID || seenIds.has(messageID)) {
                         const contents = messageContainer.innerText;
-                        // console.log("existing Data:", contents.substring(0, 175));
+                        console.log("existing Data:", contents.substring(0, 175));
                         messageContainer.dataset.isProcessed = "true";
                         cleanupTimer(messageContainer);
                         return;
@@ -127,7 +139,7 @@ const observer = new MutationObserver((mutations) => {
 
                     // Capture final finalized text
                     const contents = messageContainer.innerText;
-                    // console.log("Scraped Data:", contents);
+                    console.log("Scraped Data:", contents);
 
                     chrome.runtime.sendMessage({ 
                         action: "COUNT_TOKENS", 

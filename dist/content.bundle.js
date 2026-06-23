@@ -1137,12 +1137,20 @@
             while (coarseLocation === "waiting for coarse location...") {
               await new Promise((resolve) => setTimeout(resolve, 500));
             }
-            while (!!document.querySelector('button[aria-label="Stop generating"]')) {
+            while (messageContainer.classList.contains("result-streaming") || messageContainer.closest(".result-streaming") || !!document.querySelector(".result-streaming") || !!document.querySelector('button[aria-label*="Stop"], button[aria-label*="stop"]')) {
               await new Promise((resolve) => setTimeout(resolve, 1e3));
+            }
+            let lastLength = 0;
+            let currentLength = messageContainer.innerText.length;
+            while (currentLength !== lastLength || currentLength === 0) {
+              lastLength = currentLength;
+              await new Promise((resolve) => setTimeout(resolve, 500));
+              currentLength = messageContainer.innerText.length;
             }
             const messageID = getMessageId(messageContainer);
             if (!messageID || seenIds.has(messageID)) {
               const contents2 = messageContainer.innerText;
+              console.log("existing Data:", contents2.substring(0, 175));
               messageContainer.dataset.isProcessed = "true";
               cleanupTimer(messageContainer);
               return;
@@ -1154,6 +1162,7 @@
               chrome.storage.local.set({ seenMessageIds: updatedArray });
             });
             const contents = messageContainer.innerText;
+            console.log("Scraped Data:", contents);
             chrome.runtime.sendMessage({
               action: "COUNT_TOKENS",
               text: contents,
@@ -1256,6 +1265,7 @@
     }
   }
 })();
+//!!document.querySelector('button[aria-label="Stop generating"]')
 /*! Bundled license information:
 
 js-sha256/src/sha256.js:

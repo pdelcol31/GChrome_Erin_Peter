@@ -91,7 +91,7 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
         const tokens = enc.encode(responses);
         const tokenCount = tokens.length;
 
-        // console.log("tokens calculated in background = " + tokenCount);
+        console.log("tokens calculated in background = " + tokenCount);
         // console.log("location = " + userLocation);
 
         const existingUserId = await getStoredUserId();
