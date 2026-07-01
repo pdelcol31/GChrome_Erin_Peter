@@ -1,10 +1,23 @@
 {
-  "name": "Chat chrome extension",
-  "description": "Tokenize ChatGPT for inputs",
-  "version": "1.0",
+  "name": "AI Impact Tracker",
+  "description": "Quantify the environmental impacts of ChatGPT usage including carbon, water, and energy consumption.",
+  "version": "1.0.1",
   "manifest_version": 3,
-  "action" : {
+  "action": {
     "default_popup": "popup.html"
   },
-  "permissions": ["activeTab", "scripting"]
+  "background":{
+    "service_worker": "dist/background.bundle.js",
+    "type": "module" 
+  },
+  "permissions": ["geolocation", "storage"],
+  "host_permissions": ["https://aiimpacttracker.cs.haverford.edu/*"],
+  "content_scripts": [{
+    "matches": ["https://chatgpt.com/*"],
+    "js": ["dist/content.bundle.js"]
+  }],
+  "web_accessible_resources": [{
+    "resources": ["World_Countries_(Generalized)_2173680399808997149.geojson", "us-states.json", "CanUS_aqueduct_ids.geojson", "canada_provinces.json", "car.svg", "water_bottle.svg", "lightbulb.svg"],
+      "matches": ["https://chatgpt.com/*"]
+  }]
 }

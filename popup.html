@@ -5,9 +5,15 @@
     </head>
     <body>
         <div class="center">
-            <button id="getModel">Get Model</button>
-            <ul id="response"></ul>
-            <script type = "module" src="popup.js"></script>
-            <script src="base64js.min.js"></script>
+            <div id="welcomeButton">Welcome!</div>
+            <div id="infoMessage">See the impact of your ChatGPT usage: </div>
+            <div id="statButtons">
+                <div id="CarbonButton">Total Carbon Emission (g): 0</div>
+                <div id="WaterButton">Total Water (mL): 0</div>
+                <div id="TokensButton">Total Tokens: 0</div>
+            </div>
+            <button id="aiImpactTrackerButton"><b>Click here</b> to see more analysis about collective environmental impacts!</button>
+            <script src="popup.js"></script>
         </div> 
+    </body>
   </html>

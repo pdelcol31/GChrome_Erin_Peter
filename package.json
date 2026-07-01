@@ -1,6 +1,17 @@
 {
+  "scripts": {
+  "build": "node build.js"
+  },
   "dependencies": {
+    "@turf/boolean-point-in-polygon": "^7.3.4",
+    "@turf/helpers": "^7.3.4",
+    "argon2-browser": "^1.18.0",
     "base64-js": "^1.5.1",
+    "js-sha256": "^0.11.1",
     "js-tiktoken": "^1.0.21"
+  },
+  "devDependencies": {
+    "dotenv": "^17.4.2",
+    "esbuild": "^0.28.1"
   }
 }
