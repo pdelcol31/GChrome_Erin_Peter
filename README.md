@@ -5,3 +5,5 @@ This repository contains the code for AI Impact Tracker, a Chrome extension that
 If you are interested in installing the extension to track your own ChatGPT usage: https://chromewebstore.google.com/detail/ai-impact-tracker/gopcpgaafebifedebipjgfnmmiogddaj?
 
 If you are interested in seeing the aggregated data see our website: https://aiimpacttracker.cs.haverford.edu/
+
+If you are interested in the backend server code where energy, water, and carbon calculations are performed: https://github.com/Erin-Dougherty/AI-Impact-Tracker-Calculations
