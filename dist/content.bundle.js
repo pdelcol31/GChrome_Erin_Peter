@@ -1124,51 +1124,59 @@
       return (0, import_js_sha256.sha256)(text.substring(0, 250));
     }
   }
+  function getMessageId_google(container) {
+    const text = container.innerText.trim();
+    if (text.length < 250) {
+      return "google_ai_overview_" + (0, import_js_sha256.sha256)(text);
+    } else {
+      return "google_ai_overview_" + (0, import_js_sha256.sha256)(text.substring(0, 250));
+    }
+  }
   var observer = new MutationObserver((mutations) => {
     const responseAnchors = document.querySelectorAll('p[data-is-last-node="true"], p[data-is-last-node=""]');
     responseAnchors.forEach((p) => {
       if (p) {
-        const messageContainer = p.closest(".markdown");
-        if (messageContainer && messageContainer.dataset.isProcessed === "true") {
+        const messageContainer2 = p.closest(".markdown");
+        if (messageContainer2 && messageContainer2.dataset.isProcessed === "true") {
           return;
         }
-        if (messageContainer && !messageContainer._timer) {
-          messageContainer._timer = setTimeout(async () => {
+        if (messageContainer2 && !messageContainer2._timer) {
+          messageContainer2._timer = setTimeout(async () => {
             while (coarseLocation === "waiting for coarse location...") {
               await new Promise((resolve) => setTimeout(resolve, 500));
             }
-            while (messageContainer.classList.contains("result-streaming") || messageContainer.closest(".result-streaming") || !!document.querySelector(".result-streaming") || !!document.querySelector('button[aria-label*="Stop"], button[aria-label*="stop"]')) {
+            while (messageContainer2.classList.contains("result-streaming") || messageContainer2.closest(".result-streaming") || !!document.querySelector(".result-streaming") || !!document.querySelector('button[aria-label*="Stop"], button[aria-label*="stop"]')) {
               await new Promise((resolve) => setTimeout(resolve, 1e3));
             }
             let lastLength = 0;
-            let currentLength = messageContainer.innerText.length;
+            let currentLength = messageContainer2.innerText.length;
             while (currentLength !== lastLength || currentLength === 0) {
               lastLength = currentLength;
               await new Promise((resolve) => setTimeout(resolve, 500));
-              currentLength = messageContainer.innerText.length;
+              currentLength = messageContainer2.innerText.length;
             }
-            const messageID = getMessageId(messageContainer);
+            const messageID = getMessageId(messageContainer2);
             if (!messageID || seenIds.has(messageID)) {
-              const contents2 = messageContainer.innerText;
+              const contents2 = messageContainer2.innerText;
               console.log("existing Data:", contents2.substring(0, 175));
-              messageContainer.dataset.isProcessed = "true";
-              cleanupTimer(messageContainer);
+              messageContainer2.dataset.isProcessed = "true";
+              cleanupTimer(messageContainer2);
               return;
             }
             seenIds.add(messageID);
-            messageContainer.dataset.isProcessed = "true";
+            messageContainer2.dataset.isProcessed = "true";
             chrome.storage.local.get({ seenMessageIds: [] }).then((result) => {
               const updatedArray = [.../* @__PURE__ */ new Set([...result.seenMessageIds, messageID])];
               chrome.storage.local.set({ seenMessageIds: updatedArray });
             });
-            const contents = messageContainer.innerText;
+            const contents = messageContainer2.innerText;
             console.log("Scraped Data:", contents);
             chrome.runtime.sendMessage({
               action: "COUNT_TOKENS",
               text: contents,
               location: coarseLocation
             });
-            cleanupTimer(messageContainer);
+            cleanupTimer(messageContainer2);
           }, 5e3);
         }
       }
@@ -1206,6 +1214,53 @@
         });
       }, 5e3);
     });
+    const overviewAnchor = document.getElementById("m-x-content");
+    if (overviewAnchor) {
+      if (overviewAnchor && !overviewAnchor._timer) {
+        overviewAnchor._timer = setTimeout(async () => {
+          while (coarseLocation === "waiting for coarse location...") {
+            await new Promise((resolve) => setTimeout(resolve, 500));
+          }
+          const clonedAnchor = overviewAnchor.cloneNode(true);
+          const targetsToRemove = [
+            "script",
+            "style",
+            "button",
+            ".YWpX0d",
+            // Hidden AI error messages
+            '[role="button"]',
+            // Action buttons and menu options
+            "ul.aajpme",
+            '[data-container-id="rhs-col"]',
+            '[style="display:none"]',
+            '[class="AgWCw"]'
+          ];
+          targetsToRemove.forEach((selector) => {
+            clonedAnchor.querySelectorAll(selector).forEach((el) => el.remove());
+          });
+          const messageID = getMessageId_google(clonedAnchor);
+          if (!messageID || seenIds.has(messageID)) {
+            const existing_contents = clonedAnchor.innerText;
+            console.log("existing Data:", existing_contents);
+            return;
+          }
+          seenIds.add(messageID);
+          chrome.storage.local.get({ seenMessageIds: [] }).then((result) => {
+            const updatedArray = [.../* @__PURE__ */ new Set([...result.seenMessageIds, messageID])];
+            chrome.storage.local.set({ seenMessageIds: updatedArray });
+          });
+          const scraped_contents = clonedAnchor.innerText;
+          console.log("Scraped Data:", scraped_contents);
+          chrome.runtime.sendMessage({
+            action: "COUNT_TOKENS_GOOGLE",
+            text: scraped_contents,
+            location: coarseLocation
+          });
+          cleanupTimer(messageContainer);
+        }, 2e3);
+      }
+      ;
+    }
   });
   function cleanupTimer(container) {
     if (container._timer) clearTimeout(container._timer);

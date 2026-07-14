@@ -78,6 +78,18 @@ function getMessageId(container) {
     }
 }
 
+function getMessageId_google(container){
+    const text = container.innerText.trim();
+
+    //using SHA256 hashing
+    if(text.length < 250){
+        return "google_ai_overview_" + sha256(text);
+    }
+    else{
+        return "google_ai_overview_" + sha256(text.substring(0,250));
+    }
+}
+
 // main scraping function
 const observer = new MutationObserver((mutations) => {
     // Look for the specific 'p' tag that signals the end of a response
@@ -188,6 +200,96 @@ const observer = new MutationObserver((mutations) => {
             });
         }, 5000);
     });
+    // const overviewAnchors = document.querySelectorAll('div[class="n6owBd awi2gc"], div[class^="otQkpb"], ul[class^="KsbFXc U6u95"], ol[class="IaGLZe VimKh"], code')
+    const overviewAnchor = document.getElementById('m-x-content');
+
+    if(overviewAnchor){
+
+        if (overviewAnchor && !overviewAnchor._timer) {
+            // set a new timer on this specific message container
+            overviewAnchor._timer = setTimeout(async () => {
+                while (coarseLocation === "waiting for coarse location...") {
+                    await new Promise(resolve => setTimeout(resolve, 500)); 
+                }
+
+                // clone the element 
+                const clonedAnchor= overviewAnchor.cloneNode(true);
+
+                const targetsToRemove = [
+                    'script', 
+                    'style', 
+                    'button',
+                    '.YWpX0d',        // Hidden AI error messages
+                    '[role="button"]', // Action buttons and menu options
+                    'ul.aajpme',
+                    '[data-container-id="rhs-col"]',
+                    '[style="display:none"]',
+                    '[class="AgWCw"]'
+                ];
+
+                targetsToRemove.forEach(selector => {
+                    clonedAnchor.querySelectorAll(selector).forEach(el => el.remove());
+                });
+
+                const messageID = getMessageId_google(clonedAnchor);
+
+                if (!messageID || seenIds.has(messageID)) {
+                    const existing_contents = clonedAnchor.innerText;
+                    console.log("existing Data:", existing_contents);
+                    return;
+                }
+
+                // Add to local Set instantly before any async 'await' pauses execution
+                seenIds.add(messageID);
+                // Update permanent storage atomically
+                chrome.storage.local.get({ seenMessageIds: [] }).then(result => {
+                    const updatedArray = [...new Set([...result.seenMessageIds, messageID])];
+                    chrome.storage.local.set({ seenMessageIds: updatedArray });
+                });
+                const scraped_contents = clonedAnchor.innerText;
+                console.log("Scraped Data:", scraped_contents);
+
+                chrome.runtime.sendMessage({ 
+                        action: "COUNT_TOKENS_GOOGLE", 
+                        text: scraped_contents ,
+                        location: coarseLocation
+                    });
+
+                    cleanupTimer(messageContainer);
+            }, 2000);
+        };
+    }
+
+    // if(overviewAnchors){overviewAnchors.forEach((messageContainer) => {
+
+    //     if (messageContainer && !messageContainer._timer) {
+    //         // set a new timer on this specific message container
+    //         messageContainer._timer = setTimeout(async () => {
+    //                 while (coarseLocation === "waiting for coarse location...") {
+    //                     await new Promise(resolve => setTimeout(resolve, 500)); 
+    //                 }
+    //             const messageID = getMessageId_google(messageContainer);
+
+    //             if (!messageID || seenIds.has(messageID)) {
+    //                 const existing_contents = messageContainer.innerText;
+    //                 console.log("existing Data:", existing_contents.substring(0, 175));
+    //                 return;
+    //             }
+
+    //             // Add to local Set instantly before any async 'await' pauses execution
+    //             seenIds.add(messageID);
+    //             // Update permanent storage atomically
+    //             chrome.storage.local.get({ seenMessageIds: [] }).then(result => {
+    //                 const updatedArray = [...new Set([...result.seenMessageIds, messageID])];
+    //                 chrome.storage.local.set({ seenMessageIds: updatedArray });
+    //             });
+    //             const scraped_contents = messageContainer.innerText;
+    //             console.log("Scraped Data:", scraped_contents);
+    //         }, 5000);
+    //     };
+    // });}
+
+    
 });
 
 
