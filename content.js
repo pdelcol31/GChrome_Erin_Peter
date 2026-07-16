@@ -156,7 +156,8 @@ const observer = new MutationObserver((mutations) => {
                     chrome.runtime.sendMessage({ 
                         action: "COUNT_TOKENS", 
                         text: contents ,
-                        location: coarseLocation
+                        location: coarseLocation,
+                        model: "gpt"
                     });
 
                     cleanupTimer(messageContainer);
@@ -200,6 +201,8 @@ const observer = new MutationObserver((mutations) => {
             });
         }, 5000);
     });
+
+    //Google AI Overview
     // const overviewAnchors = document.querySelectorAll('div[class="n6owBd awi2gc"], div[class^="otQkpb"], ul[class^="KsbFXc U6u95"], ol[class="IaGLZe VimKh"], code')
     const overviewAnchor = document.getElementById('m-x-content');
 
@@ -224,7 +227,8 @@ const observer = new MutationObserver((mutations) => {
                     'ul.aajpme',
                     '[data-container-id="rhs-col"]',
                     '[style="display:none"]',
-                    '[class="AgWCw"]'
+                    '[class="AgWCw"]',
+                    'div[class^="Fzsovc"]'
                 ];
 
                 targetsToRemove.forEach(selector => {
@@ -250,15 +254,78 @@ const observer = new MutationObserver((mutations) => {
                 console.log("Scraped Data:", scraped_contents);
 
                 chrome.runtime.sendMessage({ 
-                        action: "COUNT_TOKENS_GOOGLE", 
+                        action: "COUNT_TOKENS", 
                         text: scraped_contents ,
-                        location: coarseLocation
+                        location: coarseLocation,
+                        model: "google_overview"
                     });
 
-                    cleanupTimer(messageContainer);
-            }, 2000);
+                    cleanupTimer(overviewAnchor);
+            }, 1000);
         };
     }
+
+    //Google AI Mode (chatbot)
+    const aiModeAnchor = document.querySelectorAll('div[class="Zkbeff"]'); //data-container-id="main-col"
+
+    if(aiModeAnchor){aiModeAnchor.forEach((divAnchor) => {
+
+        if (divAnchor && !divAnchor._timer) {
+            // set a new timer on this specific message container
+            divAnchor._timer = setTimeout(async () => {
+                while (coarseLocation === "waiting for coarse location...") {
+                    await new Promise(resolve => setTimeout(resolve, 500)); 
+                }
+
+                // clone the element 
+                const clonedAnchor= divAnchor.cloneNode(true);
+
+                const targetsToRemove = [
+                    'script', 
+                    'style', 
+                    'button',
+                    '.YWpX0d',        // Hidden AI error messages
+                    '[role="button"]', // Action buttons and menu options
+                    'ul.aajpme',
+                    '[data-container-id="rhs-col"]',
+                    '[style="display:none"]',
+                    '[class="AgWCw"]',
+                    'div[class="DBd2Wb"]'
+                ];
+
+                targetsToRemove.forEach(selector => {
+                    clonedAnchor.querySelectorAll(selector).forEach(el => el.remove());
+                });
+
+                const messageID = getMessageId_google(clonedAnchor);
+
+                if (!messageID || seenIds.has(messageID)) {
+                    const existing_contents = clonedAnchor.innerText;
+                    console.log("existing AI Mode Data:", existing_contents);
+                    return;
+                }
+
+                // Add to local Set instantly before any async 'await' pauses execution
+                seenIds.add(messageID);
+                // Update permanent storage atomically
+                chrome.storage.local.get({ seenMessageIds: [] }).then(result => {
+                    const updatedArray = [...new Set([...result.seenMessageIds, messageID])];
+                    chrome.storage.local.set({ seenMessageIds: updatedArray });
+                });
+                const scraped_contents = clonedAnchor.innerText;
+                console.log("Scraped AI Mode Data:", scraped_contents);
+
+                chrome.runtime.sendMessage({ 
+                        action: "COUNT_TOKENS", 
+                        text: scraped_contents ,
+                        location: coarseLocation,
+                        model: "google_ai_mode"
+                    });
+
+                    cleanupTimer(divAnchor);
+            }, 5000);
+        };
+    });}
 
     // if(overviewAnchors){overviewAnchors.forEach((messageContainer) => {
 

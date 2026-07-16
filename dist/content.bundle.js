@@ -1136,47 +1136,48 @@
     const responseAnchors = document.querySelectorAll('p[data-is-last-node="true"], p[data-is-last-node=""]');
     responseAnchors.forEach((p) => {
       if (p) {
-        const messageContainer2 = p.closest(".markdown");
-        if (messageContainer2 && messageContainer2.dataset.isProcessed === "true") {
+        const messageContainer = p.closest(".markdown");
+        if (messageContainer && messageContainer.dataset.isProcessed === "true") {
           return;
         }
-        if (messageContainer2 && !messageContainer2._timer) {
-          messageContainer2._timer = setTimeout(async () => {
+        if (messageContainer && !messageContainer._timer) {
+          messageContainer._timer = setTimeout(async () => {
             while (coarseLocation === "waiting for coarse location...") {
               await new Promise((resolve) => setTimeout(resolve, 500));
             }
-            while (messageContainer2.classList.contains("result-streaming") || messageContainer2.closest(".result-streaming") || !!document.querySelector(".result-streaming") || !!document.querySelector('button[aria-label*="Stop"], button[aria-label*="stop"]')) {
+            while (messageContainer.classList.contains("result-streaming") || messageContainer.closest(".result-streaming") || !!document.querySelector(".result-streaming") || !!document.querySelector('button[aria-label*="Stop"], button[aria-label*="stop"]')) {
               await new Promise((resolve) => setTimeout(resolve, 1e3));
             }
             let lastLength = 0;
-            let currentLength = messageContainer2.innerText.length;
+            let currentLength = messageContainer.innerText.length;
             while (currentLength !== lastLength || currentLength === 0) {
               lastLength = currentLength;
               await new Promise((resolve) => setTimeout(resolve, 500));
-              currentLength = messageContainer2.innerText.length;
+              currentLength = messageContainer.innerText.length;
             }
-            const messageID = getMessageId(messageContainer2);
+            const messageID = getMessageId(messageContainer);
             if (!messageID || seenIds.has(messageID)) {
-              const contents2 = messageContainer2.innerText;
+              const contents2 = messageContainer.innerText;
               console.log("existing Data:", contents2.substring(0, 175));
-              messageContainer2.dataset.isProcessed = "true";
-              cleanupTimer(messageContainer2);
+              messageContainer.dataset.isProcessed = "true";
+              cleanupTimer(messageContainer);
               return;
             }
             seenIds.add(messageID);
-            messageContainer2.dataset.isProcessed = "true";
+            messageContainer.dataset.isProcessed = "true";
             chrome.storage.local.get({ seenMessageIds: [] }).then((result) => {
               const updatedArray = [.../* @__PURE__ */ new Set([...result.seenMessageIds, messageID])];
               chrome.storage.local.set({ seenMessageIds: updatedArray });
             });
-            const contents = messageContainer2.innerText;
+            const contents = messageContainer.innerText;
             console.log("Scraped Data:", contents);
             chrome.runtime.sendMessage({
               action: "COUNT_TOKENS",
               text: contents,
-              location: coarseLocation
+              location: coarseLocation,
+              model: "gpt"
             });
-            cleanupTimer(messageContainer2);
+            cleanupTimer(messageContainer);
           }, 5e3);
         }
       }
@@ -1233,7 +1234,8 @@
             "ul.aajpme",
             '[data-container-id="rhs-col"]',
             '[style="display:none"]',
-            '[class="AgWCw"]'
+            '[class="AgWCw"]',
+            'div[class^="Fzsovc"]'
           ];
           targetsToRemove.forEach((selector) => {
             clonedAnchor.querySelectorAll(selector).forEach((el) => el.remove());
@@ -1252,14 +1254,66 @@
           const scraped_contents = clonedAnchor.innerText;
           console.log("Scraped Data:", scraped_contents);
           chrome.runtime.sendMessage({
-            action: "COUNT_TOKENS_GOOGLE",
+            action: "COUNT_TOKENS",
             text: scraped_contents,
-            location: coarseLocation
+            location: coarseLocation,
+            model: "google_overview"
           });
-          cleanupTimer(messageContainer);
-        }, 2e3);
+          cleanupTimer(overviewAnchor);
+        }, 1e3);
       }
       ;
+    }
+    const aiModeAnchor = document.querySelectorAll('div[class="Zkbeff"]');
+    if (aiModeAnchor) {
+      aiModeAnchor.forEach((divAnchor) => {
+        if (divAnchor && !divAnchor._timer) {
+          divAnchor._timer = setTimeout(async () => {
+            while (coarseLocation === "waiting for coarse location...") {
+              await new Promise((resolve) => setTimeout(resolve, 500));
+            }
+            const clonedAnchor = divAnchor.cloneNode(true);
+            const targetsToRemove = [
+              "script",
+              "style",
+              "button",
+              ".YWpX0d",
+              // Hidden AI error messages
+              '[role="button"]',
+              // Action buttons and menu options
+              "ul.aajpme",
+              '[data-container-id="rhs-col"]',
+              '[style="display:none"]',
+              '[class="AgWCw"]',
+              'div[class="DBd2Wb"]'
+            ];
+            targetsToRemove.forEach((selector) => {
+              clonedAnchor.querySelectorAll(selector).forEach((el) => el.remove());
+            });
+            const messageID = getMessageId_google(clonedAnchor);
+            if (!messageID || seenIds.has(messageID)) {
+              const existing_contents = clonedAnchor.innerText;
+              console.log("existing AI Mode Data:", existing_contents);
+              return;
+            }
+            seenIds.add(messageID);
+            chrome.storage.local.get({ seenMessageIds: [] }).then((result) => {
+              const updatedArray = [.../* @__PURE__ */ new Set([...result.seenMessageIds, messageID])];
+              chrome.storage.local.set({ seenMessageIds: updatedArray });
+            });
+            const scraped_contents = clonedAnchor.innerText;
+            console.log("Scraped AI Mode Data:", scraped_contents);
+            chrome.runtime.sendMessage({
+              action: "COUNT_TOKENS",
+              text: scraped_contents,
+              location: coarseLocation,
+              model: "google_ai_mode"
+            });
+            cleanupTimer(divAnchor);
+          }, 5e3);
+        }
+        ;
+      });
     }
   });
   function cleanupTimer(container) {

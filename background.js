@@ -14,19 +14,74 @@
 //or: npm run build
 
 import { encodingForModel } from "js-tiktoken";
+import { AutoTokenizer, env } from '@huggingface/transformers';
+
+//Configure the Hugging Face environment to look ONLY inside this extension 
+env.allowRemoteModels = false;
+env.allowLocalModels = true;
+env.localModelPath = chrome.runtime.getURL(''); 
+let gemmaTokenizer = null;
+let cachedEncryptionKey = null;
+
+async function initTokenizer() {
+  if (gemmaTokenizer) return gemmaTokenizer;
+
+  try {
+    // point to the folder name in dist directory
+    // Hugging Face automatically finds models/gemma/tokenizer.json natively
+    gemmaTokenizer = await AutoTokenizer.from_pretrained('models/gemma');
+    return gemmaTokenizer;
+  } catch (error) {
+    console.error("Failed to load local Hugging Face Gemma tokenizer:", error);
+    return null;
+  }
+}
+
+let encryptionKeyPromise = null;
+
+function getEncryptionKey() {
+  // If a key lookup is already in progress (or finished), return that exact same promise!
+  if (encryptionKeyPromise) {
+    return encryptionKeyPromise;
+  }
+
+  // 2. Assign the entire async execution chain to the promise cache
+  encryptionKeyPromise = (async () => {
+    const result = await chrome.storage.local.get(["enc_key"]);
+    
+    if (result.enc_key) {
+      const rawKey = Uint8Array.from(atob(result.enc_key), c => c.charCodeAt(0));
+      return await crypto.subtle.importKey("raw", rawKey, "AES-GCM", false, ["encrypt", "decrypt"]);
+    }
+    
+    // First-time setup (generation)
+    const key = await crypto.subtle.generateKey({ name: "AES-GCM", length: 256 }, true, ["encrypt", "decrypt"]);
+    const exported = await crypto.subtle.exportKey("raw", key);
+    await chrome.storage.local.set({ enc_key: btoa(String.fromCharCode(...new Uint8Array(exported))) });
+    return key;
+  })();
+
+  return encryptionKeyPromise;
+}
 
 // Generate or retrieve encryption key
-async function getEncryptionKey() {
-  const result = await chrome.storage.local.get(["enc_key"]);
-  if (result.enc_key) {
-    const rawKey = Uint8Array.from(atob(result.enc_key), c => c.charCodeAt(0));
-    return crypto.subtle.importKey("raw", rawKey, "AES-GCM", false, ["encrypt", "decrypt"]);
-  }
-  const key = await crypto.subtle.generateKey({ name: "AES-GCM", length: 256 }, true, ["encrypt", "decrypt"]);
-  const exported = await crypto.subtle.exportKey("raw", key);
-  await chrome.storage.local.set({ enc_key: btoa(String.fromCharCode(...new Uint8Array(exported))) });
-  return key;
-}
+// async function getEncryptionKey() {
+//   if (cachedEncryptionKey) {
+//     return cachedEncryptionKey;
+//   }
+//   const result = await chrome.storage.local.get(["enc_key"]);
+//   if (result.enc_key) {
+//     const rawKey = Uint8Array.from(atob(result.enc_key), c => c.charCodeAt(0));
+//     // return crypto.subtle.importKey("raw", rawKey, "AES-GCM", false, ["encrypt", "decrypt"]);
+//     cachedEncryptionKey = await crypto.subtle.importKey("raw", rawKey, "AES-GCM", false, ["encrypt", "decrypt"]);
+//     return cachedEncryptionKey;
+//   }
+//   const key = await crypto.subtle.generateKey({ name: "AES-GCM", length: 256 }, true, ["encrypt", "decrypt"]);
+//   const exported = await crypto.subtle.exportKey("raw", key);
+//   await chrome.storage.local.set({ enc_key: btoa(String.fromCharCode(...new Uint8Array(exported))) });
+//   cachedEncryptionKey = key;
+//   return key;
+// }
 
 // Encrypt before storing
 async function encryptData(data) {
@@ -76,6 +131,9 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
     //get responses and location
     let responses = request.text;
     let userLocation = request.location; //"country, US state, watershed id"
+    let current_model = request.model;
+    let payload = "";
+    let tokenCount = 0;
     
     if(responses == null || responses.length == 0){
       //No response found
@@ -84,20 +142,23 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
     }
     else {
       (async () => {
+        const existingUserId = await getStoredUserId();
+        let fetch_url="";
+        if(current_model == "gpt"){
         // creating js-tiktoken encoder
         const enc = encodingForModel("gpt-5-chat-latest");
 
         // calculate tokens
         const tokens = enc.encode(responses);
-        const tokenCount = tokens.length;
+        tokenCount = tokens.length;
 
         console.log("tokens calculated in background = " + tokenCount);
         // console.log("location = " + userLocation);
 
-        const existingUserId = await getStoredUserId();
+        // const existingUserId = await getStoredUserId();
         // console.log("stored user_id =", existingUserId);
 
-        const payload = {
+        payload = {
           file_name: "impacts.csv",
           data: [
             {
@@ -115,7 +176,48 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
         console.log("Sending data to aiimpacttracker.cs");
         // console.log("payload =", payload);
 
-        fetch("https://aiimpacttracker.cs.haverford.edu/api/write-csv2/", {
+        fetch_url = "https://aiimpacttracker.cs.haverford.edu/api/write-csv2/";
+      } else{//google ai overview and ai mode
+        // creating huggingface/transformers encoder
+        const tokenizer = await initTokenizer();
+        if (!tokenizer) return 0;
+
+        // Encode the text into an ID array
+        const encoded = tokenizer.encode(responses);
+        tokenCount = encoded.length; //get number of tokens
+        
+        // const tokenizer = await AutoTokenizer.from_pretrained('google/gemma-2b');
+        // const encodedIds = tokenizer.encode(text);
+        // const tokenCount = encodedIds.length;
+
+        console.log("tokens calculated in background = " + tokenCount);
+        // console.log("location = " + userLocation);
+
+        // const existingUserId = await getStoredUserId();
+        // console.log("stored user_id =", existingUserId);
+
+        payload = {
+          file_name: "impacts.csv",
+          data: [
+            {
+              tokens: tokenCount,
+              location: userLocation,
+              model: current_model,
+              date: new Date().toLocaleDateString("en-US"),
+            },
+          ],
+        };
+
+        if (existingUserId) {
+          payload.user_id = existingUserId;
+        }
+
+        console.log("Sending google ai overview data to aiimpacttracker.cs");
+        // console.log("payload =", payload);
+        fetch_url = "https://aiimpacttracker.cs.haverford.edu/api/write-csv-google/"
+      }
+      if(payload == ""){console.log("Payload is undefined"); return}
+        fetch(fetch_url, {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
@@ -134,14 +236,13 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
 
             await chrome.storage.local.set({ user_data: await encryptData(data.user_data) });
             // console.log("Saved user_data:", data.user_data);
-              
             if (data.request_id && !existingUserId) {
               await setStoredUserId(data.request_id);
               // console.log("Saved user_id:", data.request_id);
             }
             sendResponse({ ok: true, tokenCount, data });
 
-            chrome.action.setBadgeText({ text: '!' });
+            chrome.action.setBadgeText({ text: ' ' });
             chrome.action.setBadgeBackgroundColor({ color: '#FF0000' });
           })
           .catch((err) =>
@@ -190,6 +291,7 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
         })
           .then(async (res) => {
               const text = await res.text();
+
               if (!res.ok) throw new Error(`HTTP ${res.status}: ${text}`);
               return JSON.parse(text);
             })
@@ -204,9 +306,9 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
               // console.log("Saved user_id:", data.request_id);
             }
             sendResponse({ ok: true, data });
-
-            chrome.action.setBadgeText({ text: '!' });
-              chrome.action.setBadgeBackgroundColor({ color: '#FF0000' });
+            console.log("got to setting badge");
+            // chrome.action.setBadgeText({ text: ' ' });
+              // chrome.action.setBadgeBackgroundColor({ color: '#FF0000' });
             })
           .catch((err) =>
             sendResponse({ ok: false, error: err.message })
