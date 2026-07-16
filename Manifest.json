@@ -1,7 +1,7 @@
 {
   "name": "AI Impact Tracker Testing",
   "description": "Quantify the environmental impacts of ChatGPT usage including carbon, water, and energy consumption.",
-  "version": "1.0.1",
+  "version": "2.0.1",
   "manifest_version": 3,
   "action": {
     "default_popup": "popup.html"
