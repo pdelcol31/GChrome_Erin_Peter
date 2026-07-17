@@ -1228,9 +1228,9 @@
             "style",
             "button",
             ".YWpX0d",
-            // Hidden AI error messages
+            // hidden AI error messages
             '[role="button"]',
-            // Action buttons and menu options
+            // action buttons and menu options
             "ul.aajpme",
             '[data-container-id="rhs-col"]',
             '[style="display:none"]',
@@ -1384,7 +1384,6 @@
     }
   }
 })();
-//!!document.querySelector('button[aria-label="Stop generating"]')
 /*! Bundled license information:
 
 js-sha256/src/sha256.js:

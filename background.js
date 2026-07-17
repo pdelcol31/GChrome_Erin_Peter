@@ -21,14 +21,16 @@ env.allowRemoteModels = false;
 env.allowLocalModels = true;
 env.localModelPath = chrome.runtime.getURL(''); 
 let gemmaTokenizer = null;
-let cachedEncryptionKey = null;
 
+let cachedEncryptionKey = null;
+let encryptionKeyPromise = null;
+
+//initialize Google Gemma tokenizer
 async function initTokenizer() {
   if (gemmaTokenizer) return gemmaTokenizer;
 
   try {
     // point to the folder name in dist directory
-    // Hugging Face automatically finds models/gemma/tokenizer.json natively
     gemmaTokenizer = await AutoTokenizer.from_pretrained('models/gemma');
     return gemmaTokenizer;
   } catch (error) {
@@ -37,10 +39,11 @@ async function initTokenizer() {
   }
 }
 
+//create notification (for new data) badge
 async function setCornerCircleBadge(text, badgeColor, textColor) {
   const canvasSize = 32;
   
-  // 1. Fetch and load your base extension logo image
+  // fetch and load your base extension logo image
   const response = await fetch(chrome.runtime.getURL('images/icon32.png'));
   const blob = await response.blob();
   const imageBitmap = await createImageBitmap(blob);
@@ -48,58 +51,56 @@ async function setCornerCircleBadge(text, badgeColor, textColor) {
   const canvas = new OffscreenCanvas(canvasSize, canvasSize);
   const ctx = canvas.getContext('2d');
 
-  // 2. Draw your main logo image as the background layer
+  // draw your main logo image as the background layer
   ctx.drawImage(imageBitmap, 0, 0, canvasSize, canvasSize);
 
-  // 3. Define dimensions and position (shifted closer to the true corner edges)
+  // define dimensions and position (shifted closer to the true corner edges)
   const circleRadius = 7; 
   const circleX = 25; // Adjusted to mimic the overlapping layout next to it
   const circleY = 25; 
 
-  // 4. Configure the drop shadow effect
+  // configure the drop shadow effect
   ctx.shadowColor = 'rgba(0, 0, 0, 0.4)'; // Semi-transparent black shadow
   ctx.shadowBlur = 3;                      // Softness of the shadow edge
   ctx.shadowOffsetX = 0;                   // Centered shadow offset
   ctx.shadowOffsetY = 1;                   // Push shadow slightly downwards
 
-  // 5. Draw the solid circular badge background (with shadow applied)
+  // draw the solid circular badge background (with shadow applied)
   ctx.fillStyle = badgeColor;
   ctx.beginPath();
   ctx.arc(circleX, circleY, circleRadius, 0, 2 * Math.PI);
   ctx.fill();
 
-  // 6. Turn off shadows for the border and text layers so they stay crisp
+  // turn off shadows for the border and text layers so they stay crisp
   ctx.shadowColor = 'transparent';
   ctx.shadowBlur = 0;
   ctx.shadowOffsetX = 0;
   ctx.shadowOffsetY = 0;
 
-  // 7. Add the thick white stroke border around the circle ring
+  // add the thick white stroke border around the circle ring
   ctx.strokeStyle = '#FFFFFF'; // Crisp white border color
   ctx.lineWidth = 2.5;         // Match the border thickness of the reference icon
   ctx.stroke();
 
-  // 8. Configure text settings
+  // configure text settings
   ctx.fillStyle = textColor;
   ctx.font = 'bold 9px Arial'; // Slightly smaller font to balance inside the bordered ring
   ctx.textAlign = 'center';
   ctx.textBaseline = 'middle';
 
-  // 9. Draw the text inside the center of the badge
+  // draw the text inside the center of the badge
   ctx.fillText(text, circleX, circleY);
 
-  // 10. Apply the combined image data to your extension icon
+  // apply the combined image data to your extension icon
   const imageData = ctx.getImageData(0, 0, canvasSize, canvasSize);
   await chrome.action.setIcon({ imageData: imageData });
 }
 
-
-
+//clear notification badge
 async function clearBadgeOnly() {
   const size = 32;
-  const logoSize = 32; // Keeps your icon sized nicely with your padding
+  const logoSize = 32; 
   
-  // chrome.runtime.getURL turns this into a guaranteed absolute extension path
   const response = await fetch(chrome.runtime.getURL('images/icon32.png'));
   const blob = await response.blob();
   const imageBitmap = await createImageBitmap(blob);
@@ -114,16 +115,14 @@ async function clearBadgeOnly() {
   await chrome.action.setIcon({ imageData: imageData });
 }
 
-
-let encryptionKeyPromise = null;
-
+//lookup encryption key
 function getEncryptionKey() {
   // If a key lookup is already in progress (or finished), return that exact same promise!
   if (encryptionKeyPromise) {
     return encryptionKeyPromise;
   }
 
-  // 2. Assign the entire async execution chain to the promise cache
+  // assign the entire async execution chain to the promise cache
   encryptionKeyPromise = (async () => {
     const result = await chrome.storage.local.get(["enc_key"]);
     
@@ -141,25 +140,6 @@ function getEncryptionKey() {
 
   return encryptionKeyPromise;
 }
-
-// Generate or retrieve encryption key
-// async function getEncryptionKey() {
-//   if (cachedEncryptionKey) {
-//     return cachedEncryptionKey;
-//   }
-//   const result = await chrome.storage.local.get(["enc_key"]);
-//   if (result.enc_key) {
-//     const rawKey = Uint8Array.from(atob(result.enc_key), c => c.charCodeAt(0));
-//     // return crypto.subtle.importKey("raw", rawKey, "AES-GCM", false, ["encrypt", "decrypt"]);
-//     cachedEncryptionKey = await crypto.subtle.importKey("raw", rawKey, "AES-GCM", false, ["encrypt", "decrypt"]);
-//     return cachedEncryptionKey;
-//   }
-//   const key = await crypto.subtle.generateKey({ name: "AES-GCM", length: 256 }, true, ["encrypt", "decrypt"]);
-//   const exported = await crypto.subtle.exportKey("raw", key);
-//   await chrome.storage.local.set({ enc_key: btoa(String.fromCharCode(...new Uint8Array(exported))) });
-//   cachedEncryptionKey = key;
-//   return key;
-// }
 
 // Encrypt before storing
 async function encryptData(data) {
@@ -208,7 +188,7 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
   if (request?.action === "COUNT_TOKENS") {
     //get responses and location
     let responses = request.text;
-    let userLocation = request.location; //"country, US state, watershed id"
+    let userLocation = request.location; //"country, US state / Canada province, watershed id"
     let current_model = request.model;
     let payload = "";
     let tokenCount = 0;
@@ -222,78 +202,65 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
       (async () => {
         const existingUserId = await getStoredUserId();
         let fetch_url="";
+
         if(current_model == "gpt"){
-        // creating js-tiktoken encoder
-        const enc = encodingForModel("gpt-5-chat-latest");
+          // creating js-tiktoken encoder
+          const enc = encodingForModel("gpt-5-chat-latest");
 
-        // calculate tokens
-        const tokens = enc.encode(responses);
-        tokenCount = tokens.length;
+          // calculate tokens
+          const tokens = enc.encode(responses);
+          tokenCount = tokens.length;
 
-        console.log("tokens calculated in background = " + tokenCount);
-        // console.log("location = " + userLocation);
+          console.log("tokens calculated in background = " + tokenCount);
+          // console.log("location = " + userLocation);
 
-        // const existingUserId = await getStoredUserId();
-        // console.log("stored user_id =", existingUserId);
+          payload = {
+            file_name: "impacts.csv",
+            data: [
+              {
+                tokens: tokenCount,
+                location: userLocation,
+                date: new Date().toLocaleDateString("en-US"),
+              },
+            ],
+          };
 
-        payload = {
-          file_name: "impacts.csv",
-          data: [
-            {
-              tokens: tokenCount,
-              location: userLocation,
-              date: new Date().toLocaleDateString("en-US"),
-            },
-          ],
-        };
+          if (existingUserId) {
+            payload.user_id = existingUserId;
+          }
 
-        if (existingUserId) {
-          payload.user_id = existingUserId;
+          console.log("Sending data to aiimpacttracker.cs");
+          fetch_url = "https://aiimpacttracker.cs.haverford.edu/api/write-csv2/";
+        } else{ //google ai overview and ai mode
+          // creating huggingface/transformers encoder
+          const tokenizer = await initTokenizer();
+          if (!tokenizer) return 0;
+
+          // Encode the text into an ID array
+          const encoded = tokenizer.encode(responses);
+          tokenCount = encoded.length; //get number of tokens
+
+          console.log("tokens calculated in background = " + tokenCount);
+
+          payload = {
+            file_name: "impacts.csv",
+            data: [
+              {
+                tokens: tokenCount,
+                location: userLocation,
+                model: current_model,
+                date: new Date().toLocaleDateString("en-US"),
+              },
+            ],
+          };
+
+          if (existingUserId) {
+            payload.user_id = existingUserId;
+          }
+
+          console.log("Sending google ai overview data to aiimpacttracker.cs");
+          fetch_url = "https://aiimpacttracker.cs.haverford.edu/api/write-csv-google/"
         }
-
-        console.log("Sending data to aiimpacttracker.cs");
-        // console.log("payload =", payload);
-
-        fetch_url = "https://aiimpacttracker.cs.haverford.edu/api/write-csv2/";
-      } else{//google ai overview and ai mode
-        // creating huggingface/transformers encoder
-        const tokenizer = await initTokenizer();
-        if (!tokenizer) return 0;
-
-        // Encode the text into an ID array
-        const encoded = tokenizer.encode(responses);
-        tokenCount = encoded.length; //get number of tokens
-        
-        // const tokenizer = await AutoTokenizer.from_pretrained('google/gemma-2b');
-        // const encodedIds = tokenizer.encode(text);
-        // const tokenCount = encodedIds.length;
-
-        console.log("tokens calculated in background = " + tokenCount);
-        // console.log("location = " + userLocation);
-
-        // const existingUserId = await getStoredUserId();
-        // console.log("stored user_id =", existingUserId);
-
-        payload = {
-          file_name: "impacts.csv",
-          data: [
-            {
-              tokens: tokenCount,
-              location: userLocation,
-              model: current_model,
-              date: new Date().toLocaleDateString("en-US"),
-            },
-          ],
-        };
-
-        if (existingUserId) {
-          payload.user_id = existingUserId;
-        }
-
-        console.log("Sending google ai overview data to aiimpacttracker.cs");
-        // console.log("payload =", payload);
-        fetch_url = "https://aiimpacttracker.cs.haverford.edu/api/write-csv-google/"
-      }
       if(payload == ""){console.log("Payload is undefined"); return}
         fetch(fetch_url, {
           method: "POST",
@@ -311,18 +278,14 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
           })
           .then(async (data) => {
             // console.log("server response data =", data);
-
             await chrome.storage.local.set({ user_data: await encryptData(data.user_data) });
             // console.log("Saved user_data:", data.user_data);
             if (data.request_id && !existingUserId) {
               await setStoredUserId(data.request_id);
-              // console.log("Saved user_id:", data.request_id);
             }
             sendResponse({ ok: true, tokenCount, data });
 
             setCornerCircleBadge("", "#FF0000", "#FFFFFF").catch(console.error);
-            // chrome.action.setBadgeText({ text: ' ' });
-            // chrome.action.setBadgeBackgroundColor({ color: '#FF0000' });
           })
           .catch((err) =>
             sendResponse({ ok: false, tokenCount, error: err.message })
@@ -375,19 +338,14 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
               return JSON.parse(text);
             })
           .then(async (data) => {
-            // console.log("server response data =", data);
 
             await chrome.storage.local.set({ user_data: await encryptData(data.user_data) });
-            // console.log("Saved user_data:", data.user_data);
                 
             if (data.request_id && !existingUserId) {
               await setStoredUserId(data.request_id);
-              // console.log("Saved user_id:", data.request_id);
             }
             sendResponse({ ok: true, data });
             console.log("got to setting badge");
-            // chrome.action.setBadgeText({ text: ' ' });
-              // chrome.action.setBadgeBackgroundColor({ color: '#FF0000' });
             })
           .catch((err) =>
             sendResponse({ ok: false, error: err.message })
@@ -408,8 +366,6 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
           payload.user_id = request.userId;
         }
 
-        // console.log("Reload button triggered sync. Payload:", payload);
-
         const res = await fetch("https://aiimpacttracker.cs.haverford.edu/api/reload-extension-data/", {
           method: "POST",
           headers: {
@@ -426,10 +382,8 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
 
         // Save the updated server data back to local storage
         await chrome.storage.local.set({ user_data: await encryptData(data.user_data) });
-        // console.log("Reload synced user_data successfully.");
 
         // Clear notification badge since user manually updated
-        // chrome.action.setBadgeText({ text: '' });
         clearBadgeOnly();
 
         sendResponse({ success: true });

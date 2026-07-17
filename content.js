@@ -92,7 +92,7 @@ function getMessageId_google(container){
 
 // main scraping function
 const observer = new MutationObserver((mutations) => {
-    // Look for the specific 'p' tag that signals the end of a response
+    // Look for the specific 'p' tag that signals the end of a response in ChatGPT
     const responseAnchors = document.querySelectorAll('p[data-is-last-node="true"], p[data-is-last-node=""]');   
     // Loop through all the tags (e.g. responses) found
     responseAnchors.forEach((p) => {
@@ -113,11 +113,11 @@ const observer = new MutationObserver((mutations) => {
                     while (messageContainer.classList.contains('result-streaming') || 
                     messageContainer.closest('.result-streaming') ||
                     !!document.querySelector('.result-streaming') ||
-                    !!document.querySelector('button[aria-label*="Stop"], button[aria-label*="stop"]')) { //!!document.querySelector('button[aria-label="Stop generating"]')
+                    !!document.querySelector('button[aria-label*="Stop"], button[aria-label*="stop"]')) { 
                         await new Promise(resolve => setTimeout(resolve, 1000)); 
                     }
 
-                    // Extra safety: dynamic wait to make sure text length hasn't changed in the last 500ms
+                    // extra safety: dynamic wait to make sure text length hasn't changed in the last 500ms
                     let lastLength = 0;
                     let currentLength = messageContainer.innerText.length;
                     while (currentLength !== lastLength || currentLength === 0) {
@@ -149,7 +149,7 @@ const observer = new MutationObserver((mutations) => {
                         chrome.storage.local.set({ seenMessageIds: updatedArray });
                     });
 
-                    // Capture final finalized text
+                    // Capture finalized text
                     const contents = messageContainer.innerText;
                     console.log("Scraped Data:", contents);
 
@@ -165,6 +165,7 @@ const observer = new MutationObserver((mutations) => {
             }
         }
     });
+    // check for generated images in ChatGPT
     const imageAnchors = document.querySelectorAll('img[id^="_r_"]');
     imageAnchors.forEach((img) => {
         if(!img){return};
@@ -203,11 +204,8 @@ const observer = new MutationObserver((mutations) => {
     });
 
     //Google AI Overview
-    // const overviewAnchors = document.querySelectorAll('div[class="n6owBd awi2gc"], div[class^="otQkpb"], ul[class^="KsbFXc U6u95"], ol[class="IaGLZe VimKh"], code')
     const overviewAnchor = document.getElementById('m-x-content');
-
     if(overviewAnchor){
-
         if (overviewAnchor && !overviewAnchor._timer) {
             // set a new timer on this specific message container
             overviewAnchor._timer = setTimeout(async () => {
@@ -217,13 +215,12 @@ const observer = new MutationObserver((mutations) => {
 
                 // clone the element 
                 const clonedAnchor= overviewAnchor.cloneNode(true);
-
                 const targetsToRemove = [
                     'script', 
                     'style', 
                     'button',
-                    '.YWpX0d',        // Hidden AI error messages
-                    '[role="button"]', // Action buttons and menu options
+                    '.YWpX0d',        // hidden AI error messages
+                    '[role="button"]', // action buttons and menu options
                     'ul.aajpme',
                     '[data-container-id="rhs-col"]',
                     '[style="display:none"]',
@@ -235,6 +232,7 @@ const observer = new MutationObserver((mutations) => {
                     clonedAnchor.querySelectorAll(selector).forEach(el => el.remove());
                 });
 
+                //unique messageID for the generated response
                 const messageID = getMessageId_google(clonedAnchor);
 
                 if (!messageID || seenIds.has(messageID)) {
@@ -265,8 +263,8 @@ const observer = new MutationObserver((mutations) => {
         };
     }
 
-    //Google AI Mode (chatbot)
-    const aiModeAnchor = document.querySelectorAll('div[class="Zkbeff"]'); //data-container-id="main-col"
+    //search for Google AI Mode (chatbot) responses
+    const aiModeAnchor = document.querySelectorAll('div[class="Zkbeff"]');
 
     if(aiModeAnchor){aiModeAnchor.forEach((divAnchor) => {
 
@@ -279,7 +277,6 @@ const observer = new MutationObserver((mutations) => {
 
                 // clone the element 
                 const clonedAnchor= divAnchor.cloneNode(true);
-
                 const targetsToRemove = [
                     'script', 
                     'style', 
@@ -292,7 +289,6 @@ const observer = new MutationObserver((mutations) => {
                     '[class="AgWCw"]',
                     'div[class="DBd2Wb"]'
                 ];
-
                 targetsToRemove.forEach(selector => {
                     clonedAnchor.querySelectorAll(selector).forEach(el => el.remove());
                 });
@@ -325,37 +321,6 @@ const observer = new MutationObserver((mutations) => {
             }, 5000);
         };
     });}
-
-    // if(overviewAnchors){overviewAnchors.forEach((messageContainer) => {
-
-    //     if (messageContainer && !messageContainer._timer) {
-    //         // set a new timer on this specific message container
-    //         messageContainer._timer = setTimeout(async () => {
-    //                 while (coarseLocation === "waiting for coarse location...") {
-    //                     await new Promise(resolve => setTimeout(resolve, 500)); 
-    //                 }
-    //             const messageID = getMessageId_google(messageContainer);
-
-    //             if (!messageID || seenIds.has(messageID)) {
-    //                 const existing_contents = messageContainer.innerText;
-    //                 console.log("existing Data:", existing_contents.substring(0, 175));
-    //                 return;
-    //             }
-
-    //             // Add to local Set instantly before any async 'await' pauses execution
-    //             seenIds.add(messageID);
-    //             // Update permanent storage atomically
-    //             chrome.storage.local.get({ seenMessageIds: [] }).then(result => {
-    //                 const updatedArray = [...new Set([...result.seenMessageIds, messageID])];
-    //                 chrome.storage.local.set({ seenMessageIds: updatedArray });
-    //             });
-    //             const scraped_contents = messageContainer.innerText;
-    //             console.log("Scraped Data:", scraped_contents);
-    //         }, 5000);
-    //     };
-    // });}
-
-    
 });
 
 
@@ -448,5 +413,4 @@ async function getLocation2(userCoords) {
         //update coarseLocation
         coarseLocation += ", " + watershedId.properties["string_id"];
     }
-    // console.log(`Coarse Location: ${coarseLocation}`);
 }

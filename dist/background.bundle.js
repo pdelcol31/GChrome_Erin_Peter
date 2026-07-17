@@ -33255,6 +33255,7 @@ env2.allowRemoteModels = false;
 env2.allowLocalModels = true;
 env2.localModelPath = chrome.runtime.getURL("");
 var gemmaTokenizer = null;
+var encryptionKeyPromise = null;
 async function initTokenizer() {
   if (gemmaTokenizer) return gemmaTokenizer;
   try {
@@ -33312,7 +33313,6 @@ async function clearBadgeOnly() {
   const imageData = ctx.getImageData(0, 0, size, size);
   await chrome.action.setIcon({ imageData });
 }
-var encryptionKeyPromise = null;
 function getEncryptionKey() {
   if (encryptionKeyPromise) {
     return encryptionKeyPromise;
