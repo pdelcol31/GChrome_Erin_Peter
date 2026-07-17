@@ -314,7 +314,6 @@ const observer = new MutationObserver((mutations) => {
                 });
                 const scraped_contents = clonedAnchor.innerText;
                 console.log("Scraped AI Mode Data:", scraped_contents);
-
                 chrome.runtime.sendMessage({ 
                         action: "COUNT_TOKENS", 
                         text: scraped_contents ,
@@ -365,16 +364,28 @@ function cleanupTimer(container) {
     container._timer = null;
 }
 
+navigator.permissions.query({ name: 'geolocation' }).then((permissionStatus) => {
+  if (permissionStatus.state === 'denied') {
+    console.log("The user explicitly denied location access.");
+    coarseLocation = "Global, ";
+    // Guide your user to re-enable it manually
+  } else if (permissionStatus.state === 'prompt') {
+    console.log("The user hasn't chosen yet (it will prompt).");
+  } else if (permissionStatus.state === 'granted') {
+    console.log("Location access is already granted.");
+  }
+});
+
 //run when a user's location changes and update global coarseLocation variable
 navigator.geolocation.watchPosition((position) => {
-    //retrieve user's lat, long
-    const lat = position.coords.latitude;
-    const lng = position.coords.longitude; 
-    
-    const userCoords = [lng,lat];
-    //get and set coarse location data (country, state, watershed id)
-    getLocation2(userCoords);
-});
+        //retrieve user's lat, long
+        const lat = position.coords.latitude;
+        const lng = position.coords.longitude; 
+        
+        const userCoords = [lng,lat];
+        //get and set coarse location data (country, state, watershed id)
+        getLocation2(userCoords);
+    });
 
 //get the coarse location data country, state, watershed id (usa) -- using turf and set 
 // courseLocation

@@ -37,6 +37,84 @@ async function initTokenizer() {
   }
 }
 
+async function setCornerCircleBadge(text, badgeColor, textColor) {
+  const canvasSize = 32;
+  
+  // 1. Fetch and load your base extension logo image
+  const response = await fetch(chrome.runtime.getURL('images/icon32.png'));
+  const blob = await response.blob();
+  const imageBitmap = await createImageBitmap(blob);
+
+  const canvas = new OffscreenCanvas(canvasSize, canvasSize);
+  const ctx = canvas.getContext('2d');
+
+  // 2. Draw your main logo image as the background layer
+  ctx.drawImage(imageBitmap, 0, 0, canvasSize, canvasSize);
+
+  // 3. Define dimensions and position (shifted closer to the true corner edges)
+  const circleRadius = 7; 
+  const circleX = 25; // Adjusted to mimic the overlapping layout next to it
+  const circleY = 25; 
+
+  // 4. Configure the drop shadow effect
+  ctx.shadowColor = 'rgba(0, 0, 0, 0.4)'; // Semi-transparent black shadow
+  ctx.shadowBlur = 3;                      // Softness of the shadow edge
+  ctx.shadowOffsetX = 0;                   // Centered shadow offset
+  ctx.shadowOffsetY = 1;                   // Push shadow slightly downwards
+
+  // 5. Draw the solid circular badge background (with shadow applied)
+  ctx.fillStyle = badgeColor;
+  ctx.beginPath();
+  ctx.arc(circleX, circleY, circleRadius, 0, 2 * Math.PI);
+  ctx.fill();
+
+  // 6. Turn off shadows for the border and text layers so they stay crisp
+  ctx.shadowColor = 'transparent';
+  ctx.shadowBlur = 0;
+  ctx.shadowOffsetX = 0;
+  ctx.shadowOffsetY = 0;
+
+  // 7. Add the thick white stroke border around the circle ring
+  ctx.strokeStyle = '#FFFFFF'; // Crisp white border color
+  ctx.lineWidth = 2.5;         // Match the border thickness of the reference icon
+  ctx.stroke();
+
+  // 8. Configure text settings
+  ctx.fillStyle = textColor;
+  ctx.font = 'bold 9px Arial'; // Slightly smaller font to balance inside the bordered ring
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+
+  // 9. Draw the text inside the center of the badge
+  ctx.fillText(text, circleX, circleY);
+
+  // 10. Apply the combined image data to your extension icon
+  const imageData = ctx.getImageData(0, 0, canvasSize, canvasSize);
+  await chrome.action.setIcon({ imageData: imageData });
+}
+
+
+
+async function clearBadgeOnly() {
+  const size = 32;
+  const logoSize = 32; // Keeps your icon sized nicely with your padding
+  
+  // chrome.runtime.getURL turns this into a guaranteed absolute extension path
+  const response = await fetch(chrome.runtime.getURL('images/icon32.png'));
+  const blob = await response.blob();
+  const imageBitmap = await createImageBitmap(blob);
+  
+  const canvas = new OffscreenCanvas(size, size);
+  const ctx = canvas.getContext('2d');
+
+  ctx.clearRect(0, 0, size, size);
+  ctx.drawImage(imageBitmap, 0, 0, logoSize, logoSize);
+  
+  const imageData = ctx.getImageData(0, 0, size, size);
+  await chrome.action.setIcon({ imageData: imageData });
+}
+
+
 let encryptionKeyPromise = null;
 
 function getEncryptionKey() {
@@ -242,8 +320,9 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
             }
             sendResponse({ ok: true, tokenCount, data });
 
-            chrome.action.setBadgeText({ text: ' ' });
-            chrome.action.setBadgeBackgroundColor({ color: '#FF0000' });
+            setCornerCircleBadge("", "#FF0000", "#FFFFFF").catch(console.error);
+            // chrome.action.setBadgeText({ text: ' ' });
+            // chrome.action.setBadgeBackgroundColor({ color: '#FF0000' });
           })
           .catch((err) =>
             sendResponse({ ok: false, tokenCount, error: err.message })
@@ -350,7 +429,8 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
         // console.log("Reload synced user_data successfully.");
 
         // Clear notification badge since user manually updated
-        chrome.action.setBadgeText({ text: '' });
+        // chrome.action.setBadgeText({ text: '' });
+        clearBadgeOnly();
 
         sendResponse({ success: true });
       } catch (err) {

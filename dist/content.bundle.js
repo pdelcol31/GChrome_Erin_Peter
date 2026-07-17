@@ -1320,6 +1320,16 @@
     if (container._timer) clearTimeout(container._timer);
     container._timer = null;
   }
+  navigator.permissions.query({ name: "geolocation" }).then((permissionStatus) => {
+    if (permissionStatus.state === "denied") {
+      console.log("The user explicitly denied location access.");
+      coarseLocation = "Global, ";
+    } else if (permissionStatus.state === "prompt") {
+      console.log("The user hasn't chosen yet (it will prompt).");
+    } else if (permissionStatus.state === "granted") {
+      console.log("Location access is already granted.");
+    }
+  });
   navigator.geolocation.watchPosition((position) => {
     const lat = position.coords.latitude;
     const lng = position.coords.longitude;

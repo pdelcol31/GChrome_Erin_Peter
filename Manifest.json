@@ -4,7 +4,11 @@
   "version": "2.0.1",
   "manifest_version": 3,
   "action": {
-    "default_popup": "popup.html"
+    "default_popup": "popup.html",
+    "default_icon": {
+      "16": "images/icon16.png",
+      "32": "images/icon32.png"
+    }
   },
   "background":{
     "service_worker": "dist/background.bundle.js",
@@ -19,5 +23,11 @@
   "web_accessible_resources": [{
     "resources": ["World_Countries_(Generalized)_2173680399808997149.geojson", "us-states.json", "CanUS_aqueduct_ids.geojson", "canada_provinces.json", "car.svg", "water_bottle.svg", "lightbulb.svg", "models/gemma/tokenizer.json"],
       "matches": ["https://chatgpt.com/*", "https://www.google.com/*"]
-  }]
+  }],
+  "icons": {
+    "16": "images/icon16.png",
+    "32": "images/icon32.png",
+    "48": "images/icon48.png",
+    "128": "images/icon128.png"
+  }
 }

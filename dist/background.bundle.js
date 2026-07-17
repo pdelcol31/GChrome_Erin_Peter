@@ -33265,6 +33265,53 @@ async function initTokenizer() {
     return null;
   }
 }
+async function setCornerCircleBadge(text, badgeColor, textColor) {
+  const canvasSize = 32;
+  const response = await fetch(chrome.runtime.getURL("images/icon32.png"));
+  const blob = await response.blob();
+  const imageBitmap = await createImageBitmap(blob);
+  const canvas = new OffscreenCanvas(canvasSize, canvasSize);
+  const ctx = canvas.getContext("2d");
+  ctx.drawImage(imageBitmap, 0, 0, canvasSize, canvasSize);
+  const circleRadius = 7;
+  const circleX = 25;
+  const circleY = 25;
+  ctx.shadowColor = "rgba(0, 0, 0, 0.4)";
+  ctx.shadowBlur = 3;
+  ctx.shadowOffsetX = 0;
+  ctx.shadowOffsetY = 1;
+  ctx.fillStyle = badgeColor;
+  ctx.beginPath();
+  ctx.arc(circleX, circleY, circleRadius, 0, 2 * Math.PI);
+  ctx.fill();
+  ctx.shadowColor = "transparent";
+  ctx.shadowBlur = 0;
+  ctx.shadowOffsetX = 0;
+  ctx.shadowOffsetY = 0;
+  ctx.strokeStyle = "#FFFFFF";
+  ctx.lineWidth = 2.5;
+  ctx.stroke();
+  ctx.fillStyle = textColor;
+  ctx.font = "bold 9px Arial";
+  ctx.textAlign = "center";
+  ctx.textBaseline = "middle";
+  ctx.fillText(text, circleX, circleY);
+  const imageData = ctx.getImageData(0, 0, canvasSize, canvasSize);
+  await chrome.action.setIcon({ imageData });
+}
+async function clearBadgeOnly() {
+  const size = 32;
+  const logoSize = 32;
+  const response = await fetch(chrome.runtime.getURL("images/icon32.png"));
+  const blob = await response.blob();
+  const imageBitmap = await createImageBitmap(blob);
+  const canvas = new OffscreenCanvas(size, size);
+  const ctx = canvas.getContext("2d");
+  ctx.clearRect(0, 0, size, size);
+  ctx.drawImage(imageBitmap, 0, 0, logoSize, logoSize);
+  const imageData = ctx.getImageData(0, 0, size, size);
+  await chrome.action.setIcon({ imageData });
+}
 var encryptionKeyPromise = null;
 function getEncryptionKey() {
   if (encryptionKeyPromise) {
@@ -33387,8 +33434,7 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
             await setStoredUserId(data.request_id);
           }
           sendResponse({ ok: true, tokenCount, data });
-          chrome.action.setBadgeText({ text: " " });
-          chrome.action.setBadgeBackgroundColor({ color: "#FF0000" });
+          setCornerCircleBadge("", "#FF0000", "#FFFFFF").catch(console.error);
         }).catch(
           (err) => sendResponse({ ok: false, tokenCount, error: err.message })
         );
@@ -33468,7 +33514,7 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
         if (!res.ok) throw new Error(`HTTP ${res.status}: ${text}`);
         const data = JSON.parse(text);
         await chrome.storage.local.set({ user_data: await encryptData(data.user_data) });
-        chrome.action.setBadgeText({ text: "" });
+        clearBadgeOnly();
         sendResponse({ success: true });
       } catch (err) {
         console.error("Reload sync failed:", err.message);
