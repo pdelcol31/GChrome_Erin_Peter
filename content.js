@@ -34,6 +34,9 @@ chrome.storage.local.get({ seenMessageIds: [], seenImages: [] }).then(result => 
 
 // stores coarse location data of user as string (country, state, watershed id)
 let coarseLocation = "waiting for coarse location...";
+let _locationResolve;
+const locationReady = new Promise((resolve) => { _locationResolve = resolve; });
+let _locationResolved = false;
 
 //Load in countries, states, watershed json files
 // 1. get the internal URL
@@ -51,6 +54,7 @@ var statesGeoJson = null;
 var aqueductIdsGeoJson = null;
 var canadaProvincesJson = null;
 // 3. load spatial data
+let spatialDataReady;
 async function loadSpatialData() {
     const countriesResponse = await fetch(countriesFileUrl);
     countriesGeoJson = await countriesResponse.json();
@@ -62,7 +66,7 @@ async function loadSpatialData() {
     canadaProvincesJson = await canadaProvincesResponse.json();
     console.log("All spatial data loaded and ready.");
 }
-loadSpatialData();
+spatialDataReady  = loadSpatialData();
 
 //create an Id for a chat response using SHA-256 hashing
 function getMessageId(container) {
@@ -91,7 +95,7 @@ function getMessageId_google(container){
 }
 
 // main scraping function
-const observer = new MutationObserver((mutations) => {
+const observer = new MutationObserver((mutations) => {    
     // Look for the specific 'p' tag that signals the end of a response in ChatGPT
     const responseAnchors = document.querySelectorAll('p[data-is-last-node="true"], p[data-is-last-node=""]');   
     // Loop through all the tags (e.g. responses) found
@@ -107,9 +111,10 @@ const observer = new MutationObserver((mutations) => {
             if (messageContainer && !messageContainer._timer) {
                 // set a new timer on this specific message container
                 messageContainer._timer = setTimeout(async () => {
-                    while (coarseLocation === "waiting for coarse location...") {
-                        await new Promise(resolve => setTimeout(resolve, 500)); 
-                    }
+                    // while (coarseLocation === "waiting for coarse location...") {
+                    //     await new Promise(resolve => setTimeout(resolve, 500)); 
+                    // }
+                    await locationReady; 
                     while (messageContainer.classList.contains('result-streaming') || 
                     messageContainer.closest('.result-streaming') ||
                     !!document.querySelector('.result-streaming') ||
@@ -170,9 +175,10 @@ const observer = new MutationObserver((mutations) => {
     imageAnchors.forEach((img) => {
         if(!img){return};
         img._timer = setTimeout(async () => {
-            while (coarseLocation === "waiting for coarse location...") {
-                await new Promise(resolve => setTimeout(resolve, 500)); 
-            }
+            await locationReady; 
+            // while (coarseLocation === "waiting for coarse location...") {
+            //     await new Promise(resolve => setTimeout(resolve, 500)); 
+            // }
             while (!!document.querySelector('button[aria-label="Stop generating"]')) {
                 await new Promise(resolve => setTimeout(resolve, 1000)); 
             }
@@ -206,15 +212,19 @@ const observer = new MutationObserver((mutations) => {
     //Google AI Overview
     const overviewAnchor = document.getElementById('m-x-content');
     if(overviewAnchor){
+        console.log("found overviewAnchor");
         if (overviewAnchor && !overviewAnchor._timer) {
+            console.log("overviewanchor with timer");
             // set a new timer on this specific message container
             overviewAnchor._timer = setTimeout(async () => {
-                while (coarseLocation === "waiting for coarse location...") {
-                    await new Promise(resolve => setTimeout(resolve, 500)); 
-                }
+                // while (coarseLocation === "waiting for coarse location...") {
+                //     await new Promise(resolve => setTimeout(resolve, 500)); 
+                // }
+                await locationReady; 
 
                 // clone the element 
                 const clonedAnchor= overviewAnchor.cloneNode(true);
+                console.log("cloned anchor");
                 const targetsToRemove = [
                     'script', 
                     'style', 
@@ -231,6 +241,7 @@ const observer = new MutationObserver((mutations) => {
                 targetsToRemove.forEach(selector => {
                     clonedAnchor.querySelectorAll(selector).forEach(el => el.remove());
                 });
+                console.log("removed bad elements");
 
                 //unique messageID for the generated response
                 const messageID = getMessageId_google(clonedAnchor);
@@ -271,9 +282,10 @@ const observer = new MutationObserver((mutations) => {
         if (divAnchor && !divAnchor._timer) {
             // set a new timer on this specific message container
             divAnchor._timer = setTimeout(async () => {
-                while (coarseLocation === "waiting for coarse location...") {
-                    await new Promise(resolve => setTimeout(resolve, 500)); 
-                }
+                // while (coarseLocation === "waiting for coarse location...") {
+                //     await new Promise(resolve => setTimeout(resolve, 500)); 
+                // }
+                await locationReady; 
 
                 // clone the element 
                 const clonedAnchor= divAnchor.cloneNode(true);
@@ -341,25 +353,53 @@ navigator.permissions.query({ name: 'geolocation' }).then((permissionStatus) => 
   }
 });
 
-//run when a user's location changes and update global coarseLocation variable
-navigator.geolocation.watchPosition((position) => {
-        //retrieve user's lat, long
-        const lat = position.coords.latitude;
-        const lng = position.coords.longitude; 
-        
-        const userCoords = [lng,lat];
-        //get and set coarse location data (country, state, watershed id)
-        getLocation2(userCoords);
-    });
-
-//get the coarse location data country, state, watershed id (usa) -- using turf and set 
-// courseLocation
-async function getLocation2(userCoords) {
-    // prevent crash: if data isn't loaded yet, exit early
-    if (!countriesGeoJson || !statesGeoJson || !aqueductIdsGeoJson) {
-        console.log("Spatial data still loading...");
-        return;
+function setCoarseLocation(value) {
+    coarseLocation = value;
+    if (!_locationResolved && value !== "waiting for coarse location...") {
+        _locationResolved = true;
+        _locationResolve(value);
     }
+}
+
+navigator.geolocation.getCurrentPosition(
+    (position) => {
+        const userCoords = [position.coords.longitude, position.coords.latitude];
+        getLocation2(userCoords);
+    },
+    (err) => console.log("Initial getCurrentPosition failed:", err),
+    { maximumAge: 60000, timeout: 8000 }
+);
+
+navigator.geolocation.watchPosition(
+    (position) => {
+        const userCoords = [position.coords.longitude, position.coords.latitude];
+        getLocation2(userCoords);
+    },
+    (err) => console.log("watchPosition error:", err),
+    { maximumAge: 60000, timeout: 8000 }
+);
+document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState === 'visible' && !_locationResolved) {
+        navigator.geolocation.getCurrentPosition(
+            (position) => {
+                const userCoords = [position.coords.longitude, position.coords.latitude];
+                getLocation2(userCoords); // make sure getLocation2 calls setCoarseLocation()
+            },
+            (err) => console.log("getCurrentPosition retry failed:", err),
+            { maximumAge: 60000, timeout: 8000 }
+        );
+    }
+});
+
+async function getLocation2(userCoords) {
+
+    let current_coarse_location = "";
+    await spatialDataReady;
+    // prevent crash: if data isn't loaded yet, exit early
+    // if (!countriesGeoJson || !statesGeoJson || !aqueductIdsGeoJson) {
+    //     console.log("Spatial data still loading...");
+    //     return;
+    // }
     const pt = point(userCoords); //  userCoords = [Lng, Lat]
 
     //country level
@@ -368,11 +408,11 @@ async function getLocation2(userCoords) {
     );
     if (!foundCountry){
         console.log(`No country found for: ${userCoords}`);
-        coarseLocation = "No country found";
+        setCoarseLocation("No country found");
         return ;
     }
     //update coarse location
-    coarseLocation = foundCountry.properties["COUNTRY"];
+    current_coarse_location = foundCountry.properties["COUNTRY"];
     //if in USA, find state 
     if (foundCountry.properties["COUNTRY"] == "United States"){
         //State level
@@ -381,10 +421,11 @@ async function getLocation2(userCoords) {
         );
         if(!foundState){
             console.log(`No state found for ${userCoords}`);
+            setCoarseLocation("No state found");
             return ;
         }
         //update coarseLocation
-        coarseLocation += ", " + foundState.properties["name"];
+        current_coarse_location += ", " + foundState.properties["name"];
     }
     else if(foundCountry.properties["COUNTRY"] == "Canada"){
         //province level
@@ -393,13 +434,14 @@ async function getLocation2(userCoords) {
         );
         if(!foundProvince){
             console.log(`No province found for ${userCoords}`);
+            setCoarseLocation("no province found");
             return ;
         }
         //update coarseLocation
-        coarseLocation += ", " + foundProvince.properties["name"];
+        current_coarse_location += ", " + foundProvince.properties["name"];
     }
     else{
-        coarseLocation += ", ";
+        current_coarse_location += ", ";
     }
     if (foundCountry.properties["COUNTRY"] == "Canada" || foundCountry.properties["COUNTRY"] == "United States"){
         //find watershed id for US and Canada
@@ -408,9 +450,85 @@ async function getLocation2(userCoords) {
         );
         if(!watershedId){
             console.log(`No watershed id found for ${userCoords}`);
+            setCoarseLocation("no watershed found");
             return ;
         }
         //update coarseLocation
-        coarseLocation += ", " + watershedId.properties["string_id"];
+        current_coarse_location += ", " + watershedId.properties["string_id"];
     }
+    setCoarseLocation(current_coarse_location);
 }
+
+//run when a user's location changes and update global coarseLocation variable
+// navigator.geolocation.watchPosition((position) => {
+//         //retrieve user's lat, long
+//         const lat = position.coords.latitude;
+//         const lng = position.coords.longitude; 
+        
+//         const userCoords = [lng,lat];
+//         //get and set coarse location data (country, state, watershed id)
+//         getLocation2(userCoords);
+//     });
+
+//get the coarse location data country, state, watershed id (usa) -- using turf and set 
+// courseLocation
+// async function getLocation2(userCoords) {
+//     // prevent crash: if data isn't loaded yet, exit early
+//     if (!countriesGeoJson || !statesGeoJson || !aqueductIdsGeoJson) {
+//         console.log("Spatial data still loading...");
+//         return;
+//     }
+//     const pt = point(userCoords); //  userCoords = [Lng, Lat]
+
+//     //country level
+//     const foundCountry = countriesGeoJson.features.find(country => 
+//         booleanPointInPolygon(pt, country)
+//     );
+//     if (!foundCountry){
+//         console.log(`No country found for: ${userCoords}`);
+//         coarseLocation = "No country found";
+//         return ;
+//     }
+//     //update coarse location
+//     coarseLocation = foundCountry.properties["COUNTRY"];
+//     //if in USA, find state 
+//     if (foundCountry.properties["COUNTRY"] == "United States"){
+//         //State level
+//         const foundState = statesGeoJson.features.find(state => 
+//             booleanPointInPolygon(pt, state)
+//         );
+//         if(!foundState){
+//             console.log(`No state found for ${userCoords}`);
+//             return ;
+//         }
+//         //update coarseLocation
+//         coarseLocation += ", " + foundState.properties["name"];
+//     }
+//     else if(foundCountry.properties["COUNTRY"] == "Canada"){
+//         //province level
+//         const foundProvince = canadaProvincesJson.features.find(province => 
+//             booleanPointInPolygon(pt, province)
+//         );
+//         if(!foundProvince){
+//             console.log(`No province found for ${userCoords}`);
+//             return ;
+//         }
+//         //update coarseLocation
+//         coarseLocation += ", " + foundProvince.properties["name"];
+//     }
+//     else{
+//         coarseLocation += ", ";
+//     }
+//     if (foundCountry.properties["COUNTRY"] == "Canada" || foundCountry.properties["COUNTRY"] == "United States"){
+//         //find watershed id for US and Canada
+//         const watershedId = aqueductIdsGeoJson.features.find(string_id => 
+//             booleanPointInPolygon(pt, string_id)
+//         );
+//         if(!watershedId){
+//             console.log(`No watershed id found for ${userCoords}`);
+//             return ;
+//         }
+//         //update coarseLocation
+//         coarseLocation += ", " + watershedId.properties["string_id"];
+//     }
+// }

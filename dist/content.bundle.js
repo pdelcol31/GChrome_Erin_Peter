@@ -1096,6 +1096,11 @@
     });
   });
   var coarseLocation = "waiting for coarse location...";
+  var _locationResolve;
+  var locationReady = new Promise((resolve) => {
+    _locationResolve = resolve;
+  });
+  var _locationResolved = false;
   var countriesFileUrl = chrome.runtime.getURL("World_Countries_(Generalized)_2173680399808997149.geojson");
   var statesFileUrl = chrome.runtime.getURL("us-states.json");
   var aqueductIdsFileUrl = chrome.runtime.getURL("CanUS_aqueduct_ids.geojson");
@@ -1104,6 +1109,7 @@
   var statesGeoJson = null;
   var aqueductIdsGeoJson = null;
   var canadaProvincesJson = null;
+  var spatialDataReady;
   async function loadSpatialData() {
     const countriesResponse = await fetch(countriesFileUrl);
     countriesGeoJson = await countriesResponse.json();
@@ -1115,7 +1121,7 @@
     canadaProvincesJson = await canadaProvincesResponse.json();
     console.log("All spatial data loaded and ready.");
   }
-  loadSpatialData();
+  spatialDataReady = loadSpatialData();
   function getMessageId(container) {
     const text = container.innerText.trim();
     if (text.length < 250) {
@@ -1142,9 +1148,7 @@
         }
         if (messageContainer && !messageContainer._timer) {
           messageContainer._timer = setTimeout(async () => {
-            while (coarseLocation === "waiting for coarse location...") {
-              await new Promise((resolve) => setTimeout(resolve, 500));
-            }
+            await locationReady;
             while (messageContainer.classList.contains("result-streaming") || messageContainer.closest(".result-streaming") || !!document.querySelector(".result-streaming") || !!document.querySelector('button[aria-label*="Stop"], button[aria-label*="stop"]')) {
               await new Promise((resolve) => setTimeout(resolve, 1e3));
             }
@@ -1189,9 +1193,7 @@
       }
       ;
       img._timer = setTimeout(async () => {
-        while (coarseLocation === "waiting for coarse location...") {
-          await new Promise((resolve) => setTimeout(resolve, 500));
-        }
+        await locationReady;
         while (!!document.querySelector('button[aria-label="Stop generating"]')) {
           await new Promise((resolve) => setTimeout(resolve, 1e3));
         }
@@ -1217,12 +1219,13 @@
     });
     const overviewAnchor = document.getElementById("m-x-content");
     if (overviewAnchor) {
+      console.log("found overviewAnchor");
       if (overviewAnchor && !overviewAnchor._timer) {
+        console.log("overviewanchor with timer");
         overviewAnchor._timer = setTimeout(async () => {
-          while (coarseLocation === "waiting for coarse location...") {
-            await new Promise((resolve) => setTimeout(resolve, 500));
-          }
+          await locationReady;
           const clonedAnchor = overviewAnchor.cloneNode(true);
+          console.log("cloned anchor");
           const targetsToRemove = [
             "script",
             "style",
@@ -1240,6 +1243,7 @@
           targetsToRemove.forEach((selector) => {
             clonedAnchor.querySelectorAll(selector).forEach((el) => el.remove());
           });
+          console.log("removed bad elements");
           const messageID = getMessageId_google(clonedAnchor);
           if (!messageID || seenIds.has(messageID)) {
             const existing_contents = clonedAnchor.innerText;
@@ -1269,9 +1273,7 @@
       aiModeAnchor.forEach((divAnchor) => {
         if (divAnchor && !divAnchor._timer) {
           divAnchor._timer = setTimeout(async () => {
-            while (coarseLocation === "waiting for coarse location...") {
-              await new Promise((resolve) => setTimeout(resolve, 500));
-            }
+            await locationReady;
             const clonedAnchor = divAnchor.cloneNode(true);
             const targetsToRemove = [
               "script",
@@ -1330,47 +1332,76 @@
       console.log("Location access is already granted.");
     }
   });
-  navigator.geolocation.watchPosition((position) => {
-    const lat = position.coords.latitude;
-    const lng = position.coords.longitude;
-    const userCoords = [lng, lat];
-    getLocation2(userCoords);
+  function setCoarseLocation(value) {
+    coarseLocation = value;
+    if (!_locationResolved && value !== "waiting for coarse location...") {
+      _locationResolved = true;
+      _locationResolve(value);
+    }
+  }
+  navigator.geolocation.getCurrentPosition(
+    (position) => {
+      const userCoords = [position.coords.longitude, position.coords.latitude];
+      getLocation2(userCoords);
+    },
+    (err) => console.log("Initial getCurrentPosition failed:", err),
+    { maximumAge: 6e4, timeout: 8e3 }
+  );
+  navigator.geolocation.watchPosition(
+    (position) => {
+      const userCoords = [position.coords.longitude, position.coords.latitude];
+      getLocation2(userCoords);
+    },
+    (err) => console.log("watchPosition error:", err),
+    { maximumAge: 6e4, timeout: 8e3 }
+  );
+  document.addEventListener("visibilitychange", () => {
+    if (document.visibilityState === "visible" && !_locationResolved) {
+      navigator.geolocation.getCurrentPosition(
+        (position) => {
+          const userCoords = [position.coords.longitude, position.coords.latitude];
+          getLocation2(userCoords);
+        },
+        (err) => console.log("getCurrentPosition retry failed:", err),
+        { maximumAge: 6e4, timeout: 8e3 }
+      );
+    }
   });
   async function getLocation2(userCoords) {
-    if (!countriesGeoJson || !statesGeoJson || !aqueductIdsGeoJson) {
-      console.log("Spatial data still loading...");
-      return;
-    }
+    let current_coarse_location = "";
+    await spatialDataReady;
     const pt = point(userCoords);
     const foundCountry = countriesGeoJson.features.find(
       (country) => booleanPointInPolygon(pt, country)
     );
     if (!foundCountry) {
       console.log(`No country found for: ${userCoords}`);
-      coarseLocation = "No country found";
+      setCoarseLocation("No country found");
       return;
     }
-    coarseLocation = foundCountry.properties["COUNTRY"];
+    current_coarse_location = foundCountry.properties["COUNTRY"];
     if (foundCountry.properties["COUNTRY"] == "United States") {
       const foundState = statesGeoJson.features.find(
         (state) => booleanPointInPolygon(pt, state)
       );
       if (!foundState) {
         console.log(`No state found for ${userCoords}`);
+        setCoarseLocation("No state found");
         return;
       }
-      coarseLocation += ", " + foundState.properties["name"];
+      current_coarse_location += ", " + foundState.properties["name"];
     } else if (foundCountry.properties["COUNTRY"] == "Canada") {
       const foundProvince = canadaProvincesJson.features.find(
         (province) => booleanPointInPolygon(pt, province)
       );
       if (!foundProvince) {
         console.log(`No province found for ${userCoords}`);
+        setCoarseLocation("no province found");
         return;
       }
-      coarseLocation += ", " + foundProvince.properties["name"];
+      current_coarse_location += ", " + foundProvince.properties["name"];
     } else {
-      coarseLocation += ", ";
+      current_coarse_location += ", ";
     }
     if (foundCountry.properties["COUNTRY"] == "Canada" || foundCountry.properties["COUNTRY"] == "United States") {
       const watershedId = aqueductIdsGeoJson.features.find(
@@ -1378,10 +1409,12 @@
       );
       if (!watershedId) {
         console.log(`No watershed id found for ${userCoords}`);
+        setCoarseLocation("no watershed found");
         return;
       }
-      coarseLocation += ", " + watershedId.properties["string_id"];
+      current_coarse_location += ", " + watershedId.properties["string_id"];
     }
+    setCoarseLocation(current_coarse_location);
   }
 })();
 /*! Bundled license information:
