@@ -1087,6 +1087,7 @@
   // content.js
   var seenIds = /* @__PURE__ */ new Set();
   var seenImgs = /* @__PURE__ */ new Set();
+  var watchId = null;
   chrome.storage.local.get({ seenMessageIds: [], seenImages: [] }).then((result) => {
     seenIds = new Set(result.seenMessageIds);
     seenImgs = new Set(result.seenImages);
@@ -1238,7 +1239,8 @@
             '[data-container-id="rhs-col"]',
             '[style="display:none"]',
             '[class="AgWCw"]',
-            'div[class^="Fzsovc"]'
+            'div[class^="Fzsovc"]',
+            'div[class^="lbf4Ad"]'
           ];
           targetsToRemove.forEach((selector) => {
             clonedAnchor.querySelectorAll(selector).forEach((el) => el.remove());
@@ -1325,12 +1327,23 @@
   navigator.permissions.query({ name: "geolocation" }).then((permissionStatus) => {
     if (permissionStatus.state === "denied") {
       console.log("The user explicitly denied location access.");
-      coarseLocation = "Global, ";
+      setCoarseLocation("Global, ");
     } else if (permissionStatus.state === "prompt") {
       console.log("The user hasn't chosen yet (it will prompt).");
+      startGeolocation();
     } else if (permissionStatus.state === "granted") {
       console.log("Location access is already granted.");
+      startGeolocation();
     }
+    permissionStatus.onchange = () => {
+      if (permissionStatus.state === "denied") {
+        console.log("Permission revoked/denied.");
+        if (watchId !== null) navigator.geolocation.clearWatch(watchId);
+        setCoarseLocation("Global, ");
+      } else if (permissionStatus.state === "granted" && watchId === null) {
+        startGeolocation();
+      }
+    };
   });
   function setCoarseLocation(value) {
     coarseLocation = value;
@@ -1339,32 +1352,50 @@
       _locationResolve(value);
     }
   }
-  navigator.geolocation.getCurrentPosition(
-    (position) => {
-      const userCoords = [position.coords.longitude, position.coords.latitude];
-      getLocation2(userCoords);
-    },
-    (err) => console.log("Initial getCurrentPosition failed:", err),
-    { maximumAge: 6e4, timeout: 8e3 }
-  );
-  navigator.geolocation.watchPosition(
-    (position) => {
-      const userCoords = [position.coords.longitude, position.coords.latitude];
-      getLocation2(userCoords);
-    },
-    (err) => console.log("watchPosition error:", err),
-    { maximumAge: 6e4, timeout: 8e3 }
-  );
+  function startGeolocation() {
+    navigator.geolocation.getCurrentPosition(
+      (position) => {
+        const userCoords = [position.coords.longitude, position.coords.latitude];
+        getLocation2(userCoords);
+      },
+      (err) => {
+        console.log("Initial getCurrentPosition failed:", err);
+        if (err.code === 1) {
+          setCoarseLocation("Global, ");
+        }
+      },
+      { maximumAge: 6e4, timeout: 8e3 }
+    );
+    navigator.geolocation.watchPosition(
+      (position) => {
+        const userCoords = [position.coords.longitude, position.coords.latitude];
+        getLocation2(userCoords);
+      },
+      (err) => {
+        console.log("watchPosition error:", err);
+        if (err.code === 1) {
+          setCoarseLocation("Global, ");
+        }
+      },
+      { maximumAge: 6e4, timeout: 8e3 }
+    );
+  }
   document.addEventListener("visibilitychange", () => {
     if (document.visibilityState === "visible" && !_locationResolved) {
-      navigator.geolocation.getCurrentPosition(
-        (position) => {
-          const userCoords = [position.coords.longitude, position.coords.latitude];
-          getLocation2(userCoords);
-        },
-        (err) => console.log("getCurrentPosition retry failed:", err),
-        { maximumAge: 6e4, timeout: 8e3 }
-      );
+      navigator.permissions.query({ name: "geolocation" }).then((permissionStatus) => {
+        if (permissionStatus.state === "denied") {
+          setCoarseLocation("Global, ");
+        } else {
+          navigator.geolocation.getCurrentPosition(
+            (position) => {
+              const userCoords = [position.coords.longitude, position.coords.latitude];
+              getLocation2(userCoords);
+            },
+            (err) => console.log("getCurrentPosition retry failed:", err),
+            { maximumAge: 6e4, timeout: 8e3 }
+          );
+        }
+      });
     }
   });
   async function getLocation2(userCoords) {

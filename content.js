@@ -20,6 +20,8 @@ import { booleanPointInPolygon } from '@turf/boolean-point-in-polygon' //spatial
 let seenIds = new Set(); //[]; 
 let seenImgs = new Set();
 
+let watchId = null;
+
 // Fetch once at the very beginning
 chrome.storage.local.get({ seenMessageIds: [], seenImages: [] }).then(result => {
     seenIds = new Set(result.seenMessageIds);
@@ -111,9 +113,6 @@ const observer = new MutationObserver((mutations) => {
             if (messageContainer && !messageContainer._timer) {
                 // set a new timer on this specific message container
                 messageContainer._timer = setTimeout(async () => {
-                    // while (coarseLocation === "waiting for coarse location...") {
-                    //     await new Promise(resolve => setTimeout(resolve, 500)); 
-                    // }
                     await locationReady; 
                     while (messageContainer.classList.contains('result-streaming') || 
                     messageContainer.closest('.result-streaming') ||
@@ -176,9 +175,6 @@ const observer = new MutationObserver((mutations) => {
         if(!img){return};
         img._timer = setTimeout(async () => {
             await locationReady; 
-            // while (coarseLocation === "waiting for coarse location...") {
-            //     await new Promise(resolve => setTimeout(resolve, 500)); 
-            // }
             while (!!document.querySelector('button[aria-label="Stop generating"]')) {
                 await new Promise(resolve => setTimeout(resolve, 1000)); 
             }
@@ -217,9 +213,6 @@ const observer = new MutationObserver((mutations) => {
             console.log("overviewanchor with timer");
             // set a new timer on this specific message container
             overviewAnchor._timer = setTimeout(async () => {
-                // while (coarseLocation === "waiting for coarse location...") {
-                //     await new Promise(resolve => setTimeout(resolve, 500)); 
-                // }
                 await locationReady; 
 
                 // clone the element 
@@ -235,7 +228,8 @@ const observer = new MutationObserver((mutations) => {
                     '[data-container-id="rhs-col"]',
                     '[style="display:none"]',
                     '[class="AgWCw"]',
-                    'div[class^="Fzsovc"]'
+                    'div[class^="Fzsovc"]',
+                    'div[class^="lbf4Ad"]',
                 ];
 
                 targetsToRemove.forEach(selector => {
@@ -282,9 +276,6 @@ const observer = new MutationObserver((mutations) => {
         if (divAnchor && !divAnchor._timer) {
             // set a new timer on this specific message container
             divAnchor._timer = setTimeout(async () => {
-                // while (coarseLocation === "waiting for coarse location...") {
-                //     await new Promise(resolve => setTimeout(resolve, 500)); 
-                // }
                 await locationReady; 
 
                 // clone the element 
@@ -344,13 +335,26 @@ function cleanupTimer(container) {
 navigator.permissions.query({ name: 'geolocation' }).then((permissionStatus) => {
   if (permissionStatus.state === 'denied') {
     console.log("The user explicitly denied location access.");
-    coarseLocation = "Global, ";
+    setCoarseLocation("Global, ")
     // Guide your user to re-enable it manually
   } else if (permissionStatus.state === 'prompt') {
     console.log("The user hasn't chosen yet (it will prompt).");
+    startGeolocation();
   } else if (permissionStatus.state === 'granted') {
     console.log("Location access is already granted.");
+    startGeolocation();
   }
+
+  // Handle the user changing their mind later (e.g. denies after prompt)
+    permissionStatus.onchange = () => {
+        if (permissionStatus.state === 'denied') {
+            console.log("Permission revoked/denied.");
+            if (watchId !== null) navigator.geolocation.clearWatch(watchId);
+            setCoarseLocation("Global, ");
+        } else if (permissionStatus.state === 'granted' && watchId === null) {
+            startGeolocation();
+        }
+    };
 });
 
 function setCoarseLocation(value) {
@@ -361,33 +365,52 @@ function setCoarseLocation(value) {
     }
 }
 
-navigator.geolocation.getCurrentPosition(
-    (position) => {
-        const userCoords = [position.coords.longitude, position.coords.latitude];
-        getLocation2(userCoords);
-    },
-    (err) => console.log("Initial getCurrentPosition failed:", err),
-    { maximumAge: 60000, timeout: 8000 }
-);
+function startGeolocation() {
+    navigator.geolocation.getCurrentPosition(
+        (position) => {
+            const userCoords = [position.coords.longitude, position.coords.latitude];
+            getLocation2(userCoords);
+        },
+        (err) => {
+            console.log("Initial getCurrentPosition failed:", err);
+            if (err.code === 1) { // PERMISSION_DENIED
+                setCoarseLocation("Global, ");
+            }
+        },
+        { maximumAge: 60000, timeout: 8000 }
+    );
 
-navigator.geolocation.watchPosition(
-    (position) => {
-        const userCoords = [position.coords.longitude, position.coords.latitude];
-        getLocation2(userCoords);
-    },
-    (err) => console.log("watchPosition error:", err),
-    { maximumAge: 60000, timeout: 8000 }
-);
+    navigator.geolocation.watchPosition(
+        (position) => {
+            const userCoords = [position.coords.longitude, position.coords.latitude];
+            getLocation2(userCoords);
+        },
+        (err) => {
+            console.log("watchPosition error:", err);
+            if (err.code === 1) {
+                setCoarseLocation("Global, ");
+            }
+        },
+        { maximumAge: 60000, timeout: 8000 }
+    );
+}
+
 document.addEventListener('visibilitychange', () => {
     if (document.visibilityState === 'visible' && !_locationResolved) {
-        navigator.geolocation.getCurrentPosition(
-            (position) => {
-                const userCoords = [position.coords.longitude, position.coords.latitude];
-                getLocation2(userCoords); // make sure getLocation2 calls setCoarseLocation()
-            },
-            (err) => console.log("getCurrentPosition retry failed:", err),
-            { maximumAge: 60000, timeout: 8000 }
-        );
+        navigator.permissions.query({ name: 'geolocation' }).then((permissionStatus) => {
+            if (permissionStatus.state === 'denied') {
+                setCoarseLocation("Global, ");
+            } else {
+                navigator.geolocation.getCurrentPosition(
+                    (position) => {
+                        const userCoords = [position.coords.longitude, position.coords.latitude];
+                        getLocation2(userCoords);
+                    },
+                    (err) => console.log("getCurrentPosition retry failed:", err),
+                    { maximumAge: 60000, timeout: 8000 }
+                );
+            }
+        });
     }
 });
 
@@ -395,11 +418,6 @@ async function getLocation2(userCoords) {
 
     let current_coarse_location = "";
     await spatialDataReady;
-    // prevent crash: if data isn't loaded yet, exit early
-    // if (!countriesGeoJson || !statesGeoJson || !aqueductIdsGeoJson) {
-    //     console.log("Spatial data still loading...");
-    //     return;
-    // }
     const pt = point(userCoords); //  userCoords = [Lng, Lat]
 
     //country level
@@ -458,77 +476,3 @@ async function getLocation2(userCoords) {
     }
     setCoarseLocation(current_coarse_location);
 }
-
-//run when a user's location changes and update global coarseLocation variable
-// navigator.geolocation.watchPosition((position) => {
-//         //retrieve user's lat, long
-//         const lat = position.coords.latitude;
-//         const lng = position.coords.longitude; 
-        
-//         const userCoords = [lng,lat];
-//         //get and set coarse location data (country, state, watershed id)
-//         getLocation2(userCoords);
-//     });
-
-//get the coarse location data country, state, watershed id (usa) -- using turf and set 
-// courseLocation
-// async function getLocation2(userCoords) {
-//     // prevent crash: if data isn't loaded yet, exit early
-//     if (!countriesGeoJson || !statesGeoJson || !aqueductIdsGeoJson) {
-//         console.log("Spatial data still loading...");
-//         return;
-//     }
-//     const pt = point(userCoords); //  userCoords = [Lng, Lat]
-
-//     //country level
-//     const foundCountry = countriesGeoJson.features.find(country => 
-//         booleanPointInPolygon(pt, country)
-//     );
-//     if (!foundCountry){
-//         console.log(`No country found for: ${userCoords}`);
-//         coarseLocation = "No country found";
-//         return ;
-//     }
-//     //update coarse location
-//     coarseLocation = foundCountry.properties["COUNTRY"];
-//     //if in USA, find state 
-//     if (foundCountry.properties["COUNTRY"] == "United States"){
-//         //State level
-//         const foundState = statesGeoJson.features.find(state => 
-//             booleanPointInPolygon(pt, state)
-//         );
-//         if(!foundState){
-//             console.log(`No state found for ${userCoords}`);
-//             return ;
-//         }
-//         //update coarseLocation
-//         coarseLocation += ", " + foundState.properties["name"];
-//     }
-//     else if(foundCountry.properties["COUNTRY"] == "Canada"){
-//         //province level
-//         const foundProvince = canadaProvincesJson.features.find(province => 
-//             booleanPointInPolygon(pt, province)
-//         );
-//         if(!foundProvince){
-//             console.log(`No province found for ${userCoords}`);
-//             return ;
-//         }
-//         //update coarseLocation
-//         coarseLocation += ", " + foundProvince.properties["name"];
-//     }
-//     else{
-//         coarseLocation += ", ";
-//     }
-//     if (foundCountry.properties["COUNTRY"] == "Canada" || foundCountry.properties["COUNTRY"] == "United States"){
-//         //find watershed id for US and Canada
-//         const watershedId = aqueductIdsGeoJson.features.find(string_id => 
-//             booleanPointInPolygon(pt, string_id)
-//         );
-//         if(!watershedId){
-//             console.log(`No watershed id found for ${userCoords}`);
-//             return ;
-//         }
-//         //update coarseLocation
-//         coarseLocation += ", " + watershedId.properties["string_id"];
-//     }
-// }
