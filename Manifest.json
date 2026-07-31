@@ -1,6 +1,6 @@
 {
   "name": "AI Impact Tracker",
-  "description": "Quantify the environmental impacts of ChatGPT, Google AI Overview, and Google AI Mode usage including carbon, water, and energy consumption.",
+  "description": "Quantify the environmental impacts of ChatGPT and Google AI Mode and Overview usage including carbon, water, and energy consumption.",
   "version": "2.0.1",
   "manifest_version": 3,
   "action": {
